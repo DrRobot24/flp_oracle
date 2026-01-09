@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "fetch-data": "npx tsx scripts/fetch_open_data.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.90.0",

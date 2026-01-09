@@ -10,4 +10,14 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    proxy: {
+      // Proxy per football-data.co.uk (bypassa CORS)
+      '/api/football-data': {
+        target: 'https://www.football-data.co.uk',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/football-data/, ''),
+      }
+    }
+  }
 })
