@@ -19,21 +19,22 @@ export interface HeadToHead {
 
 export const api = {
     // Get list of all teams in the database (for dropdown)
+    // Get list of all teams in the database (efficiently)
     async getTeams(): Promise<string[]> {
+        // Fetch only the home_team column to reduce data transfer
+        // In a real production app, a dedicated 'teams' table with a DISTINCT query or RPC would be better
         const { data, error } = await supabase
             .from('matches')
-            .select('home_team, away_team')
+            .select('home_team')
 
         if (error) {
             console.error(error)
             return []
         }
 
-        // Extract unique team names
         const teams = new Set<string>()
         data.forEach(match => {
-            teams.add(match.home_team)
-            teams.add(match.away_team)
+            if (match.home_team) teams.add(match.home_team)
         })
 
         return Array.from(teams).sort()
@@ -89,12 +90,12 @@ export const api = {
     },
 
     // Calculate stats based on last N matches
-    async getTeamStats(team: string, limit: number = 10): Promise<TeamStats> {
+    async getTeamStats(team: string, limit: number = 20): Promise<TeamStats> {
         // We need matches where team was Home OR Away
         const { data, error } = await supabase
             .from('matches')
             .select('*')
-            .or(`home_team.eq.${team},away_team.eq.${team}`)
+            .or(`home_team.eq."${team}",away_team.eq."${team}"`)
             .order('date', { ascending: false })
             .limit(limit)
 

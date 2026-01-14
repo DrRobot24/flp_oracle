@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
-import { NewsItem, getMatchNews } from '@/lib/news'
+import { NewsItem, getMatchNews } from '../lib/news'
 
 interface NewsPanelProps {
     homeTeam: string

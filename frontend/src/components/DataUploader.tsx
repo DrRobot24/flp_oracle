@@ -24,6 +24,7 @@ export function DataUploader() {
     const [dbStats, setDbStats] = useState<{ league: string; count: number; latestDate: string }[]>([])
     const [stats, setStats] = useState({ total: 0, imported: 0 })
     const [preview, setPreview] = useState<MatchRow[]>([])
+    const [config, setConfig] = useState({ season: '2025-2026', league: 'PL' })
 
     // Load DB stats on mount
     useEffect(() => {
@@ -63,13 +64,13 @@ export function DataUploader() {
 
                 // Batch insert could be optimized, but taking simple approach first
                 const formattedData = rows.map(row => ({
-                    date: convertDate(row.Date), // Helper needed for DD/MM/YY vs YYYY-MM-DD
+                    date: convertDate(row.Date),
                     home_team: row.HomeTeam,
                     away_team: row.AwayTeam,
                     home_goals: parseInt(row.FTHG),
                     away_goals: parseInt(row.FTAG),
-                    season: '2024-2025', // Hardcoded for this beta
-                    league: 'PL'         // Hardcoded
+                    season: config.season,
+                    league: config.league
                 })).filter(r => r.home_team && r.away_team && !isNaN(r.home_goals))
 
                 const { error } = await supabase
@@ -111,6 +112,26 @@ export function DataUploader() {
         <Card className="border-accent">
             <CardHeader className="text-accent border-accent">Admin Zone: Data Ingestion</CardHeader>
             <CardContent className="space-y-4">
+                {/* CONFIG CONTROLS */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-[10px] font-bold uppercase opacity-50 mb-1">Season</label>
+                        <input
+                            className="w-full border-2 border-slate-200 px-2 py-1 text-xs"
+                            value={config.season}
+                            onChange={e => setConfig({ ...config, season: e.target.value })}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-bold uppercase opacity-50 mb-1">League Code</label>
+                        <input
+                            className="w-full border-2 border-slate-200 px-2 py-1 text-xs"
+                            value={config.league}
+                            onChange={e => setConfig({ ...config, league: e.target.value })}
+                        />
+                    </div>
+                </div>
+
                 <div className="border-2 border-dashed border-gray-300 p-8 text-center bg-gray-50 rounded-lg">
                     <input
                         id="csv-file"
@@ -164,7 +185,7 @@ export function DataUploader() {
                 {/* SYNC FROM SOURCE SECTION */}
                 <div className="border-t-2 border-brutal-border pt-4 mt-4">
                     <h3 className="font-bold uppercase text-xs tracking-widest mb-3">⚡ Auto-Sync from football-data.co.uk</h3>
-                    
+
                     {/* Current DB Stats */}
                     {dbStats.length > 0 && (
                         <div className="bg-slate-100 p-3 mb-3 text-xs">
@@ -206,13 +227,13 @@ export function DataUploader() {
                             setSyncing(true)
                             setSyncProgress('Starting sync...')
                             setSyncResults([])
-                            
+
                             const results = await syncAllLeagues((msg) => setSyncProgress(msg))
-                            
+
                             setSyncResults(results)
                             setSyncProgress('')
                             setSyncing(false)
-                            
+
                             // Refresh stats
                             const newStats = await getSyncStats()
                             setDbStats(newStats)
@@ -223,7 +244,7 @@ export function DataUploader() {
                     >
                         {syncing ? "🔄 Syncing..." : "🌐 Sync All 5 Leagues (2025-2026)"}
                     </Button>
-                    
+
                     <p className="text-xs text-gray-500 mt-2">
                         Leagues: {LEAGUES.map(l => l.name).join(', ')}
                     </p>

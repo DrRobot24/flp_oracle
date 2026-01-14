@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { PoissonModel, MatchProbabilities } from '@/math/poisson'
-import { GeometricEngine, PhasePoint } from '@/math/geometric'
+import { PhasePoint } from '@/math/geometric'
 import { analyzeFormWave, matchesToSignal, WaveAnalysis } from '@/math/fourier'
+import { OracleIntegrator, OraclePrediction } from '@/math/oracle'
 import { supabase } from '@/lib/supabase'
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, LineChart, Line } from 'recharts'
 import { DataUploader } from '@/components/DataUploader'
@@ -27,7 +27,7 @@ export function Dashboard() {
     awayXG: 0
   })
 
-  const [results, setResults] = useState<MatchProbabilities | null>(null)
+  const [results, setResults] = useState<OraclePrediction | null>(null)
   const [trajectory, setTrajectory] = useState<PhasePoint[]>([])
   const [simulationCloud, setSimulationCloud] = useState<PhasePoint[]>([])
   const [homeWaveAnalysis, setHomeWaveAnalysis] = useState<WaveAnalysis | null>(null)
@@ -60,7 +60,6 @@ export function Dashboard() {
       setH2hLoading(false)
 
       // Simple predictive model: 
-      // Home Goals = (Home Attack + Away Defense) / 2
       const naiveHomeXG = (homeStats.avgGoalsFor + awayStats.avgGoalsAgainst) / 2
       const naiveAwayXG = (awayStats.avgGoalsFor + homeStats.avgGoalsAgainst) / 2
 
@@ -70,16 +69,16 @@ export function Dashboard() {
         awayXG: Number(naiveAwayXG.toFixed(2))
       }))
 
-      // Prepare Trajectory Data (Real History)
+      // Prepare Trajectory Data (Real History - Unified 20 items)
       const geoPoints: PhasePoint[] = homeStats.recentMatches.map((m, i) => ({
         time: i,
-        x: m.home_team === params.homeTeam ? m.home_goals : m.away_goals, // Goals Scored (Attack)
-        y: m.home_team === params.homeTeam ? m.away_goals : m.home_goals, // Goals Conceded (Defense)
+        x: m.home_team === params.homeTeam ? m.home_goals : m.away_goals,
+        y: m.home_team === params.homeTeam ? m.away_goals : m.home_goals,
         className: "history"
       }))
 
       setTrajectory(geoPoints)
-      setSimulationCloud([]) // Reset cloud on new team selection
+      setSimulationCloud([])
       setDataLoading(false)
     }
     updateStats()
@@ -87,125 +86,71 @@ export function Dashboard() {
 
 
   const handleCalculate = async () => {
+    if (!params.homeTeam || !params.awayTeam) return
     setLoading(true)
 
-    // 2. Geometric Prediction (Monte Carlo)
-    const geo = new GeometricEngine()
+    try {
+      // 1. Fetch deep history for both teams
+      const [homeStats, awayStats] = await Promise.all([
+        api.getTeamStats(params.homeTeam, 20),
+        api.getTeamStats(params.awayTeam, 20)
+      ])
 
-    if (trajectory.length > 0) {
-      // Run 500 simulations
-      const cloud = geo.runMonteCarloSimulation(trajectory, 500)
-      setSimulationCloud(cloud)
+      // 2. Initialize Oracle
+      const oracle = new OracleIntegrator()
+      const prediction = await oracle.calculate(
+        params.homeTeam,
+        params.awayTeam,
+        params.homeXG,
+        params.awayXG,
+        homeStats.recentMatches,
+        awayStats.recentMatches
+      )
 
-      // Calculate the "Mean" path (Average of all simulations)
-      const avgX = cloud.reduce((sum, p) => sum + p.x, 0) / cloud.length
-      const avgY = cloud.reduce((sum, p) => sum + p.y, 0) / cloud.length
+      setResults(prediction)
+
+      // 3. Update Visualizations
+      // Fourier Analysis (Dynamic)
+      const homeSignal = matchesToSignal(homeStats.recentMatches, params.homeTeam)
+      const homeWaveObj = analyzeFormWave(homeSignal, 3)
+      setHomeWaveAnalysis(homeWaveObj)
+
+      const awaySignal = matchesToSignal(awayStats.recentMatches, params.awayTeam)
+      const awayWaveObj = analyzeFormWave(awaySignal, 3)
+      setAwayWaveAnalysis(awayWaveObj)
+
+      // Use simulations directly from Oracle (No redundant calculation)
+      setSimulationCloud(prediction.simulationCloud)
 
       const predictionMean: PhasePoint = {
         time: listTime(trajectory) + 1,
-        x: avgX,
-        y: avgY,
+        x: prediction.adjustedHomeXG,
+        y: prediction.adjustedAwayXG,
         className: "prediction"
       }
-
-      // Update trajectory to show the mean prediction
       const cleanHistory = trajectory.filter(p => p.className !== 'prediction')
       setTrajectory([...cleanHistory, predictionMean])
 
-      // ---------------------------------------------------------
-      // "QUANTUM" UPDATE: Calculate probs from the Cloud ☁️
-      // ---------------------------------------------------------
-      let wins = 0
-      let draws = 0
-      let losses = 0
+      // 4. Save to Supabase
+      const { error } = await supabase
+        .from('predictions')
+        .insert({
+          home_team: params.homeTeam,
+          away_team: params.awayTeam,
+          home_xg: params.homeXG,
+          away_xg: params.awayXG,
+          prob_home: prediction.homeWin,
+          prob_draw: prediction.draw,
+          prob_away: prediction.awayWin,
+          predicted_outcome:
+            prediction.homeWin >= Math.max(prediction.draw, prediction.awayWin) ? 'HOME_WIN' :
+              (prediction.awayWin >= Math.max(prediction.draw, prediction.homeWin) ? 'AWAY_WIN' : 'DRAW')
+        })
 
-      cloud.forEach(p => {
-        // Flatten the wave function: Round to nearest integer goal
-        const homeGoals = Math.round(p.x)
-        const awayGoals = Math.round(p.y)
+      if (error) console.error('Supabase error:', error)
 
-        if (homeGoals > awayGoals) wins++
-        else if (awayGoals > homeGoals) losses++
-        else draws++
-      })
-
-      const totalSims = cloud.length
-      const mcResults: MatchProbabilities = {
-        homeWin: wins / totalSims,
-        draw: draws / totalSims,
-        awayWin: losses / totalSims,
-        homeTeam: params.homeTeam,
-        awayTeam: params.awayTeam
-      }
-
-      // Override the static Poisson results with our dynamic MC results
-      setResults(mcResults)
-
-      // Save to Supabase using these new "Quantum" probabilities
-      try {
-        const { error, data } = await supabase
-          .from('predictions')
-          .insert({
-            home_team: params.homeTeam,
-            away_team: params.awayTeam,
-            home_xg: params.homeXG,
-            away_xg: params.awayXG,
-            prob_home: mcResults.homeWin,
-            prob_draw: mcResults.draw,
-            prob_away: mcResults.awayWin,
-            predicted_outcome: mcResults.homeWin > mcResults.awayWin ? 'HOME_WIN' : (mcResults.awayWin > mcResults.homeWin ? 'AWAY_WIN' : 'DRAW')
-          })
-          .select()
-
-        if (error) {
-          console.error('Supabase error:', error)
-          alert(`Errore salvataggio: ${error.message}\n\nPotrebbe servire aggiungere le policy RLS per utenti autenticati.`)
-        } else {
-          console.log('Prediction saved:', data)
-        }
-      } catch (err) {
-        console.error('Save failed:', err)
-      }
-
-      // ---------------------------------------------------------
-      // FFT WAVE ANALYSIS 🌊 - Find Hidden Patterns for BOTH teams
-      // ---------------------------------------------------------
-      // Home Team Analysis
-      const homeStats = await api.getTeamStats(params.homeTeam, 20)
-      const homeSignal = matchesToSignal(homeStats.recentMatches, params.homeTeam)
-      const homeWave = analyzeFormWave(homeSignal, 3)
-      setHomeWaveAnalysis(homeWave)
-
-      // Away Team Analysis
-      const awayStats = await api.getTeamStats(params.awayTeam, 20)
-      const awaySignal = matchesToSignal(awayStats.recentMatches, params.awayTeam)
-      const awayWave = analyzeFormWave(awaySignal, 3)
-      setAwayWaveAnalysis(awayWave)
-    } else {
-      // Fallback if no history (shouldn't happen with real data selected)
-      const poisson = new PoissonModel()
-      const poissonRes = poisson.calculate(Number(params.homeXG), Number(params.awayXG))
-      setResults(poissonRes)
-
-      // Save to Supabase using Poisson probabilities
-      try {
-        const { error } = await supabase
-          .from('predictions')
-          .insert({
-            home_team: params.homeTeam,
-            away_team: params.awayTeam,
-            home_xg: params.homeXG,
-            away_xg: params.awayXG,
-            prob_home: poissonRes.homeWin,
-            prob_draw: poissonRes.draw,
-            prob_away: poissonRes.awayWin,
-            predicted_outcome: poissonRes.homeWin > poissonRes.awayWin ? 'HOME_WIN' : (poissonRes.awayWin > poissonRes.homeWin ? 'AWAY_WIN' : 'DRAW')
-          })
-
-        if (error) console.error('Supabase error:', error)
-      } catch (err) {
-        console.error('Save failed:', err)
-      }
+    } catch (err) {
+      console.error('Calculation failed:', err)
     }
 
     setLoading(false)
@@ -220,7 +165,7 @@ export function Dashboard() {
       <header className="mb-6 md:mb-12 border-b-4 border-brutal-border pb-4 md:pb-6 flex flex-col md:flex-row justify-between md:items-end gap-4">
         <div>
           <h1 className="text-3xl md:text-6xl font-black uppercase tracking-tighter">FLP<span className="text-secondary">.Beta</span></h1>
-          <p className="mt-1 md:mt-2 text-sm md:text-xl font-bold uppercase tracking-widest opacity-60">Monte Carlo Predictive Engine</p>
+          <p className="mt-1 md:mt-2 text-sm md:text-xl font-bold uppercase tracking-widest opacity-60">Oracle Unified Prediction Engine</p>
         </div>
         <div className="flex flex-row md:flex-col items-center md:items-end gap-2">
           <span className="text-xs md:text-sm font-bold truncate max-w-[150px] md:max-w-none">{user?.email}</span>
@@ -292,7 +237,7 @@ export function Dashboard() {
                   onClick={handleCalculate}
                   disabled={loading || !params.homeTeam || !params.awayTeam}
                 >
-                  {loading ? "Simulating..." : dataLoading ? "Analysing Data..." : "Run Monte Carlo"}
+                  {loading ? "Simulating..." : dataLoading ? "Analysing Data..." : "Run Oracle Prediction"}
                 </Button>
               </div>
             </CardContent>
@@ -301,9 +246,14 @@ export function Dashboard() {
           {/* RESULTS PANEL */}
           {results && (
             <Card variant="dark" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <CardHeader className="border-white/20">Quantum Probabilities (Monte Carlo)</CardHeader>
+              <CardHeader className="border-white/20 flex justify-between items-center">
+                <span>Oracle Unified Prediction</span>
+                <span className="text-xs bg-secondary/20 text-secondary px-2 py-1 rounded border border-secondary/30">
+                  Confidence: {(results.confidence * 100).toFixed(0)}%
+                </span>
+              </CardHeader>
               <CardContent className="space-y-6">
-                
+
                 {/* PREDICTION GAUGE / PENDULUM */}
                 <div className="relative">
                   {/* Team Names */}
@@ -312,41 +262,41 @@ export function Dashboard() {
                     <span className="font-bold text-gray-400 text-xs uppercase">Draw</span>
                     <span className="font-bold text-danger text-sm md:text-base truncate max-w-[120px] text-right">{params.awayTeam}</span>
                   </div>
-                  
+
                   {/* Gauge Bar */}
                   <div className="relative h-8 md:h-10 rounded-full overflow-hidden bg-gray-700 border-2 border-white/20">
                     {/* Home Win Zone (Green) */}
-                    <div 
+                    <div
                       className="absolute left-0 top-0 h-full bg-gradient-to-r from-green-600 to-green-500 transition-all duration-700"
                       style={{ width: `${results.homeWin * 100}%` }}
                     />
                     {/* Draw Zone (Gray) - positioned after home */}
-                    <div 
+                    <div
                       className="absolute top-0 h-full bg-gradient-to-r from-gray-500 to-gray-400 transition-all duration-700"
-                      style={{ 
+                      style={{
                         left: `${results.homeWin * 100}%`,
-                        width: `${results.draw * 100}%` 
+                        width: `${results.draw * 100}%`
                       }}
                     />
                     {/* Away Win Zone (Red) */}
-                    <div 
+                    <div
                       className="absolute right-0 top-0 h-full bg-gradient-to-l from-red-600 to-red-500 transition-all duration-700"
                       style={{ width: `${results.awayWin * 100}%` }}
                     />
-                    
+
                     {/* Center Marker (50%) */}
                     <div className="absolute left-1/2 top-0 h-full w-0.5 bg-white/50 transform -translate-x-1/2" />
-                    
+
                     {/* Pendulum Needle */}
-                    <div 
+                    <div
                       className="absolute top-1/2 h-6 w-1.5 bg-yellow-400 rounded-full shadow-lg shadow-yellow-400/50 transform -translate-y-1/2 transition-all duration-700 z-10"
-                      style={{ 
+                      style={{
                         left: `calc(${results.homeWin * 100}% + ${results.draw * 50}%)`,
                         transform: 'translate(-50%, -50%)'
                       }}
                     />
                   </div>
-                  
+
                   {/* Percentage Labels under gauge */}
                   <div className="flex justify-between mt-1 text-xs opacity-60">
                     <span>0%</span>
@@ -363,7 +313,7 @@ export function Dashboard() {
                     let prediction = ''
                     let bgColor = ''
                     let emoji = ''
-                    
+
                     if (results.homeWin === maxProb) {
                       prediction = `${params.homeTeam} WINS`
                       bgColor = 'bg-green-600'
@@ -377,7 +327,7 @@ export function Dashboard() {
                       bgColor = 'bg-gray-600'
                       emoji = '🤝'
                     }
-                    
+
                     return (
                       <div className={`${bgColor} px-6 py-3 rounded-lg text-center`}>
                         <div className="text-2xl md:text-3xl font-black">
@@ -407,6 +357,19 @@ export function Dashboard() {
                     <div className="text-4xl font-black text-danger">{(results.awayWin * 100).toFixed(1)}%</div>
                   </div>
                 </div>
+
+                {/* Technical Explanation */}
+                <div className="mt-4 p-3 bg-white/5 rounded border border-white/10">
+                  <h4 className="text-xs font-bold uppercase tracking-widest opacity-40 mb-2">Technical Insights</h4>
+                  <ul className="space-y-1">
+                    {results.explanation.map((line, i) => (
+                      <li key={i} className="text-[10px] md:text-xs opacity-70 flex items-start gap-2">
+                        <span className="text-secondary mt-1">▹</span>
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -433,7 +396,7 @@ export function Dashboard() {
           {/* HEAD TO HEAD */}
           {params.homeTeam && params.awayTeam && (
             <div className="mt-4">
-              <HeadToHead 
+              <HeadToHead
                 homeTeam={params.homeTeam}
                 awayTeam={params.awayTeam}
                 data={headToHead}
@@ -443,7 +406,7 @@ export function Dashboard() {
           )}
 
           {/* USER PREDICTION - 1 X 2 con Stake */}
-          <UserPrediction 
+          <UserPrediction
             homeTeam={params.homeTeam}
             awayTeam={params.awayTeam}
             aiPrediction={results ? {
@@ -582,7 +545,7 @@ export function Dashboard() {
                     </div>
                   </CardContent>
                   <div className="px-3 pb-3 text-xs text-gray-600">
-                    <strong>Momentum:</strong> {(homeWaveAnalysis.momentum * 100).toFixed(0)}% | 
+                    <strong>Momentum:</strong> {(homeWaveAnalysis.momentum * 100).toFixed(0)}% |
                     <strong> Cycles:</strong> {homeWaveAnalysis.dominantFrequencies.slice(0, 2).map(f => `~${f.period.toFixed(0)}m`).join(', ')}
                   </div>
                 </Card>
@@ -620,7 +583,7 @@ export function Dashboard() {
                     </div>
                   </CardContent>
                   <div className="px-3 pb-3 text-xs text-gray-600">
-                    <strong>Momentum:</strong> {(awayWaveAnalysis.momentum * 100).toFixed(0)}% | 
+                    <strong>Momentum:</strong> {(awayWaveAnalysis.momentum * 100).toFixed(0)}% |
                     <strong> Cycles:</strong> {awayWaveAnalysis.dominantFrequencies.slice(0, 2).map(f => `~${f.period.toFixed(0)}m`).join(', ')}
                   </div>
                 </Card>
@@ -640,7 +603,7 @@ export function Dashboard() {
                     <div className="text-sm font-bold">{params.homeTeam}</div>
                     <div className="text-xs text-gray-500">{homeWaveAnalysis.waveDirection}</div>
                   </div>
-                  
+
                   <div className="text-center px-4">
                     <div className="text-2xl font-black text-gray-400">VS</div>
                     <div className="text-xs mt-1">
@@ -653,7 +616,7 @@ export function Dashboard() {
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="text-center flex-1">
                     <div className={`text-3xl font-black ${awayWaveAnalysis.momentum > 0 ? 'text-green-600' : awayWaveAnalysis.momentum < 0 ? 'text-red-600' : 'text-gray-500'}`}>
                       {awayWaveAnalysis.momentum > 0 ? '↑' : awayWaveAnalysis.momentum < 0 ? '↓' : '→'} {Math.abs(awayWaveAnalysis.momentum * 100).toFixed(0)}%
@@ -668,7 +631,7 @@ export function Dashboard() {
 
           {/* AI INSIGHTS */}
           <div className="mt-4">
-            <AIInsights 
+            <AIInsights
               homeTeam={params.homeTeam}
               awayTeam={params.awayTeam}
               results={results}
