@@ -1,6 +1,6 @@
 import { PoissonModel, MatchProbabilities } from './poisson';
 import { GeometricEngine, PhasePoint } from './geometric';
-import { analyzeFormWave, matchesToSignal, WaveAnalysis } from './fourier';
+import { analyzeFormWave, matchesToSignal } from './fourier';
 
 export interface OraclePrediction extends MatchProbabilities {
     confidence: number;

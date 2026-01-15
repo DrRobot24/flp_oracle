@@ -4,6 +4,25 @@
 
 @layer base {
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground font-sans min-h-screen bg-gradient-mesh bg-fixed selection:bg-accent selection:text-white;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-glass-gradient backdrop-blur-md border border-glass-border shadow-glass rounded-xl;
+  }
+  
+  .glass-input {
+    @apply bg-white/5 border border-white/10 text-white placeholder:text-gray-400 focus:border-primary focus:ring-1 focus:ring-primary backdrop-blur-sm transition-all duration-300;
+  }
+
+  .glass-button {
+    @apply relative overflow-hidden transition-all duration-300 active:scale-95;
+  }
+  
+  /* Text gradients for headers */
+  .text-gradient-primary {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent;
   }
 }
