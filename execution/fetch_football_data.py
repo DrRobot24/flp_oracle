@@ -28,13 +28,18 @@ else:
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Configuration
+# Configuration - Extended to 10 seasons
 SEASONS = [
     {"code": "2526", "name": "2025-2026"},
     {"code": "2425", "name": "2024-2025"},
     {"code": "2324", "name": "2023-2024"},
     {"code": "2223", "name": "2022-2023"},
     {"code": "2122", "name": "2021-2022"},
+    {"code": "2021", "name": "2020-2021"},
+    {"code": "1920", "name": "2019-2020"},
+    {"code": "1819", "name": "2018-2019"},
+    {"code": "1718", "name": "2017-2018"},
+    {"code": "1617", "name": "2016-2017"},
 ]
 
 LEAGUE_CONFIGS = [

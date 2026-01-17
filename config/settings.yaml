@@ -1,0 +1,125 @@
+# FLP Oracle Configuration
+
+# Algorithm Parameters
+algorithms:
+  fourier:
+    window_size: 10           # Number of matches for rolling analysis
+    top_frequencies: 3         # Top N frequency components to use
+    momentum_influence: 0.20   # Max xG adjustment from momentum (±20%)
+    
+  poisson:
+    max_goals: 10              # Cap goal calculations at this number
+    
+  montecarlo:
+    iterations: 500            # Number of simulations to run
+    damping: 0.9               # Mean reversion factor
+    
+  geometric:
+    velocity_influence: 0.10   # Max xG adjustment from velocity (±10%)
+
+# Ensemble Configuration
+ensemble:
+  method: "geometric"          # linear | geometric | bayesian
+  confidence_weighted: true    # Adjust weights by individual algorithm confidence
+  base_weights:
+    fourier: 0.25
+    poisson: 0.45
+    montecarlo: 0.30
+
+# News Impact Settings
+news:
+  enabled: true
+  decay_half_life_hours: 48    # Time for news effect to halve
+  max_total_impact: 0.30       # Cap total adjustment at ±30%
+  
+  # Source reliability scores (0-1)
+  sources:
+    - name: "ESPN"
+      url: "https://www.espn.com/soccer/"
+      reliability: 0.90
+      
+    - name: "Sky Sports"
+      url: "https://www.skysports.com/football"
+      reliability: 0.88
+      
+    - name: "Gazzetta dello Sport"
+      url: "https://www.gazzetta.it/calcio/"
+      reliability: 0.85
+      
+    - name: "Marca"
+      url: "https://www.marca.com/futbol/"
+      reliability: 0.82
+      
+    - name: "Football Italia"
+      url: "https://www.football-italia.net/"
+      reliability: 0.80
+      
+  # Impact factors by event type
+  impact_factors:
+    forward_out: -0.15         # Key forward injured/suspended
+    midfielder_out: -0.08
+    defender_out: -0.12
+    goalkeeper_out: -0.20
+    coach_change: -0.10
+    winning_streak: 0.05
+    losing_streak: -0.08
+    derby_motivation: 0.08
+    relegation_battle: 0.05
+    title_race: 0.05
+    nothing_to_play: -0.05
+
+# Scraper Settings
+scraper:
+  rate_limit_seconds: 3        # Delay between requests
+  timeout_seconds: 10          # Request timeout
+  max_articles_per_source: 20  # Limit articles to parse
+  cache_ttl_minutes: 30        # How long to cache scraped data
+  user_agent: "FLP-Oracle/1.0 (Football Prediction System)"
+
+# Data Settings
+data:
+  leagues:
+    - code: "PL"
+      name: "Premier League"
+      file: "E0.csv"
+    - code: "SA"
+      name: "Serie A"
+      file: "I1.csv"
+    - code: "LL"
+      name: "La Liga"
+      file: "SP1.csv"
+    - code: "BL"
+      name: "Bundesliga"
+      file: "D1.csv"
+    - code: "L1"
+      name: "Ligue 1"
+      file: "F1.csv"
+      
+  seasons:
+    # Extended to 10 seasons
+    - code: "2526"
+      name: "2025-2026"
+    - code: "2425"
+      name: "2024-2025"
+    - code: "2324"
+      name: "2023-2024"
+    - code: "2223"
+      name: "2022-2023"
+    - code: "2122"
+      name: "2021-2022"
+    - code: "2021"
+      name: "2020-2021"
+    - code: "1920"
+      name: "2019-2020"
+    - code: "1819"
+      name: "2018-2019"
+    - code: "1718"
+      name: "2017-2018"
+    - code: "1617"
+      name: "2016-2017"
+
+# Output Format
+output:
+  include_explanation: true    # Include human-readable factors
+  include_simulation_cloud: false  # Include Monte Carlo points (large)
+  decimal_places: 3            # Round probabilities to N decimals

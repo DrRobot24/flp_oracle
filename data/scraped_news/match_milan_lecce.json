@@ -1,0 +1,15 @@
+{
+  "match": "Milan vs Lecce",
+  "scraped_at": "2026-01-17T21:54:30.297245",
+  "total_articles": 39,
+  "home_team": {
+    "name": "Milan",
+    "relevant_articles": 0,
+    "articles": []
+  },
+  "away_team": {
+    "name": "Lecce",
+    "relevant_articles": 0,
+    "articles": []
+  }
+}

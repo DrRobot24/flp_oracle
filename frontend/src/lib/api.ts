@@ -4,6 +4,11 @@ export interface TeamStats {
     teamName: string
     avgGoalsFor: number
     avgGoalsAgainst: number
+    // Venue-specific stats
+    avgHomeGoalsFor: number
+    avgHomeGoalsAgainst: number
+    avgAwayGoalsFor: number
+    avgAwayGoalsAgainst: number
     recentMatches: any[]
 }
 
@@ -99,22 +104,38 @@ export const api = {
             .order('date', { ascending: false })
             .limit(limit)
 
-        if (error || !data) return { teamName: team, avgGoalsFor: 0, avgGoalsAgainst: 0, recentMatches: [] }
+        if (error || !data) return {
+            teamName: team,
+            avgGoalsFor: 0,
+            avgGoalsAgainst: 0,
+            avgHomeGoalsFor: 0,
+            avgHomeGoalsAgainst: 0,
+            avgAwayGoalsFor: 0,
+            avgAwayGoalsAgainst: 0,
+            recentMatches: []
+        }
 
         // Calculate Averages
-        let goalsFor = 0
-        let goalsAgainst = 0
+        let goalsFor = 0, goalsAgainst = 0
+        let hGoalsFor = 0, hGoalsAgainst = 0, hCount = 0
+        let aGoalsFor = 0, aGoalsAgainst = 0, aCount = 0
 
         // Sort chronologically for trajectory usage later (oldest first)
-        const matches = data.reverse()
+        const matches = [...data].reverse()
 
         matches.forEach(m => {
             if (m.home_team === team) {
                 goalsFor += m.home_goals
                 goalsAgainst += m.away_goals
+                hGoalsFor += m.home_goals
+                hGoalsAgainst += m.away_goals
+                hCount++
             } else {
                 goalsFor += m.away_goals
                 goalsAgainst += m.home_goals
+                aGoalsFor += m.away_goals
+                aGoalsAgainst += m.home_goals
+                aCount++
             }
         })
 
@@ -122,6 +143,10 @@ export const api = {
             teamName: team,
             avgGoalsFor: matches.length ? goalsFor / matches.length : 0,
             avgGoalsAgainst: matches.length ? goalsAgainst / matches.length : 0,
+            avgHomeGoalsFor: hCount ? hGoalsFor / hCount : (goalsFor / matches.length || 0),
+            avgHomeGoalsAgainst: hCount ? hGoalsAgainst / hCount : (goalsAgainst / matches.length || 0),
+            avgAwayGoalsFor: aCount ? aGoalsFor / aCount : (goalsFor / matches.length || 0),
+            avgAwayGoalsAgainst: aCount ? aGoalsAgainst / aCount : (goalsAgainst / matches.length || 0),
             recentMatches: matches
         }
     }

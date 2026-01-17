@@ -1,0 +1,38 @@
+{
+  "match": "Udinese vs Inter",
+  "scraped_at": "2026-01-17T21:54:08.711022",
+  "total_articles": 39,
+  "home_team": {
+    "name": "Udinese",
+    "relevant_articles": 0,
+    "articles": []
+  },
+  "away_team": {
+    "name": "Inter",
+    "relevant_articles": 2,
+    "articles": [
+      {
+        "title": "Seven transfer targets who could improve any team this month",
+        "url": "https://www.espn.com/soccer/story/_/id/47598182/seven-transfer-targets-improve-team-month",
+        "source": "ESPN FC",
+        "published_at": "Sat, 17 Jan 2026 05:18:16 EST",
+        "scraped_at": "2026-01-17T21:51:16.040264",
+        "team_mentions": [],
+        "category": "other",
+        "raw_text": "The winter transfer window is nearly half done, so which players should clubs be targeting if they need a boost?",
+        "reliability": 0.9
+      },
+      {
+        "title": "Transfer window weekly: Güler to Arsenal? Chelsea squad changes?",
+        "url": "https://www.espn.com/soccer/story/_/id/47628046/transfer-window-weekly-arsenal-real-madrid-arda-guler-man-city-marc-guehi",
+        "source": "ESPN FC",
+        "published_at": "Fri, 16 Jan 2026 13:23:27 EST",
+        "scraped_at": "2026-01-17T21:51:16.040264",
+        "team_mentions": [],
+        "category": "other",
+        "raw_text": "The winter transfer window is open, but what are our reporters hearing about deals that could be done? Get the latest every Friday.",
+        "reliability": 0.9
+      }
+    ]
+  }
+}

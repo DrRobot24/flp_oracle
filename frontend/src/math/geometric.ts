@@ -13,7 +13,47 @@ export interface PhasePoint {
     className?: string; // For UI styling purposes
 }
 
+/**
+ * Seeded random number generator (Mulberry32)
+ * Provides deterministic random numbers for reproducible simulations
+ */
+function mulberry32(seed: number): () => number {
+    return function () {
+        let t = seed += 0x6D2B79F5;
+        t = Math.imul(t ^ t >>> 15, t | 1);
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+}
+
 export class GeometricEngine {
+    private rng: () => number;
+    private seed: number | null = null;
+
+    constructor(seed?: number) {
+        if (seed !== undefined) {
+            this.seed = seed;
+            this.rng = mulberry32(seed);
+        } else {
+            this.rng = Math.random;
+        }
+    }
+
+    /**
+     * Reset the RNG with a new seed for reproducible results
+     */
+    setSeed(seed: number): void {
+        this.seed = seed;
+        this.rng = mulberry32(seed);
+    }
+
+    /**
+     * Get current seed (null if using Math.random)
+     */
+    getSeed(): number | null {
+        return this.seed;
+    }
+
     // Calculate the 'velocity' vector between two points (trend)
     calculateVelocity(p1: PhasePoint, p2: PhasePoint): { vx: number, vy: number } {
         return {
@@ -63,7 +103,7 @@ export class GeometricEngine {
 
     /**
      * Generates a synthetic "past" trajectory that leads to the current state.
-     * Useful for visualizing the "Momemtum" when we only have the current snapshot.
+     * Useful for visualizing the "Momentum" when we only have the current snapshot.
      */
     generateSyntheticHistory(currentOffensive: number, currentDefensive: number, steps: number = 5): PhasePoint[] {
         const history: PhasePoint[] = [];
@@ -83,17 +123,18 @@ export class GeometricEngine {
             });
 
             // Perturb previous state slightly to create a path
-            // If team is good (high x), maybe they were coming from a lower x (improving) or steady
-            cx = cx - (Math.random() - 0.4) * volatility;
-            cy = cy - (Math.random() - 0.6) * volatility;
+            // Use seeded RNG for reproducibility
+            cx = cx - (this.rng() - 0.4) * volatility;
+            cy = cy - (this.rng() - 0.6) * volatility;
         }
 
         return history;
     }
-    // Helper: Generate Gaussian Random (Box-Muller transform)
+
+    // Helper: Generate Gaussian Random (Box-Muller transform) using seeded RNG
     private gaussianRandom(mean = 0, stdev = 1): number {
-        const u = 1 - Math.random(); // Converting [0,1) to (0,1]
-        const v = Math.random();
+        const u = 1 - this.rng(); // Converting [0,1) to (0,1]
+        const v = this.rng();
         const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
         return z * stdev + mean;
     }
@@ -126,6 +167,7 @@ export class GeometricEngine {
     /**
      * Run Monte Carlo Simulation
      * Generates N potential future states based on historical trend + volatility.
+     * Results are reproducible if a seed was provided to the constructor.
      */
     runMonteCarloSimulation(history: PhasePoint[], iterations: number = 500): PhasePoint[] {
         if (history.length < 2) return [];
@@ -143,7 +185,7 @@ export class GeometricEngine {
 
         const simulations: PhasePoint[] = [];
 
-        // 3. Simulate N futures
+        // 3. Simulate N futures (using seeded RNG for reproducibility)
         for (let i = 0; i < iterations; i++) {
             // Apply Damping to the mean trend (mean reversion)
             const damping = 0.9;

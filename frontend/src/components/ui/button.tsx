@@ -11,14 +11,14 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             <button
                 ref={ref}
                 className={cn(
-                    "inline-flex items-center justify-center border-2 border-brutal-border px-6 py-3 font-bold uppercase tracking-widest transition-all",
-                    "active:translate-x-[2px] active:translate-y-[2px] active:shadow-none",
-                    "disabled:opacity-50 disabled:pointer-events-none",
+                    "inline-flex items-center justify-center rounded-lg px-6 py-2.5 font-bold uppercase tracking-widest transition-all duration-300",
+                    "active:scale-95 disabled:opacity-50 disabled:pointer-events-none",
+                    "text-xs border",
 
                     /* Variants */
-                    variant === "primary" && "bg-primary text-white shadow-brutal hover:bg-blue-700 hover:shadow-glow",
-                    variant === "secondary" && "bg-secondary text-white shadow-brutal hover:bg-emerald-700",
-                    variant === "outline" && "bg-white text-foreground shadow-brutal hover:bg-slate-100",
+                    variant === "primary" && "bg-primary/90 text-white border-primary/20 hover:bg-primary shadow-lg shadow-primary/20 hover:shadow-primary/40",
+                    variant === "secondary" && "bg-secondary/90 text-white border-secondary/20 hover:bg-secondary shadow-lg shadow-secondary/20 hover:shadow-secondary/40",
+                    variant === "outline" && "bg-white/5 text-white border-white/10 hover:bg-white/10 backdrop-blur-sm",
 
                     className
                 )}

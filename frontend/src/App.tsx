@@ -2,6 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { AuthProvider, useAuth } from "@/contexts/AuthContext"
 import { Login } from "@/pages/Login"
 import { Dashboard } from "@/pages/Dashboard"
+import { Predictions } from "@/pages/Predictions"
+import { Profile } from "@/pages/Profile"
+import { Leaderboard } from "@/pages/Leaderboard"
 
 // Protected Route Component
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
@@ -31,11 +34,11 @@ function App() {
           <Route path="/login" element={<Login />} />
 
           {/* Dashboard is protected for any logged in user */}
-          <Route path="/" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
+          {/* Protected Main Routes */}
+          <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/predictions" element={<ProtectedRoute><Predictions /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
 
           {/* Admin routes will go here later */}
           {/* <Route path="/upload" element={<ProtectedRoute adminOnly><UploadPage /></ProtectedRoute>} /> */}

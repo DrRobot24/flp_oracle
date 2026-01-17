@@ -109,49 +109,54 @@ export function DataUploader() {
     if (!isAdmin) return null // Hidden for normal users
 
     return (
-        <Card className="border-accent">
-            <CardHeader className="text-accent border-accent">Admin Zone: Data Ingestion</CardHeader>
+        <Card className="glass-panel border-0">
+            <CardHeader className="text-white font-black border-b border-white/5 py-4">
+                <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                    ADMIN ZONE: DATA INGESTION
+                </div>
+            </CardHeader>
             <CardContent className="space-y-4">
                 {/* CONFIG CONTROLS */}
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-[10px] font-bold uppercase opacity-50 mb-1">Season</label>
+                        <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1 tracking-widest">Season</label>
                         <input
-                            className="w-full border-2 border-slate-200 px-2 py-1 text-xs"
+                            className="glass-input w-full px-3 py-2"
                             value={config.season}
                             onChange={e => setConfig({ ...config, season: e.target.value })}
                         />
                     </div>
                     <div>
-                        <label className="block text-[10px] font-bold uppercase opacity-50 mb-1">League Code</label>
+                        <label className="block text-[10px] font-bold uppercase text-slate-400 mb-1 tracking-widest">League Code</label>
                         <input
-                            className="w-full border-2 border-slate-200 px-2 py-1 text-xs"
+                            className="glass-input w-full px-3 py-2"
                             value={config.league}
                             onChange={e => setConfig({ ...config, league: e.target.value })}
                         />
                     </div>
                 </div>
 
-                <div className="border-2 border-dashed border-gray-300 p-8 text-center bg-gray-50 rounded-lg">
+                <div className="border-2 border-dashed border-white/10 p-8 text-center bg-white/5 rounded-xl hover:bg-white/10 transition-colors duration-300">
                     <input
                         id="csv-file"
                         type="file"
                         accept=".csv"
                         onChange={handleFileChange}
-                        className="block w-full text-sm text-slate-500
+                        className="block w-full text-sm text-slate-400
                             file:mr-4 file:py-2 file:px-4
-                            file:border-0
-                            file:text-sm file:font-semibold
-                            file:bg-accent file:text-white
-                            hover:file:bg-accent/90"
+                            file:rounded-lg file:border-0
+                            file:text-xs file:font-bold file:uppercase file:tracking-widest
+                            file:bg-accent/80 file:text-white
+                            hover:file:bg-accent transition-all"
                     />
                 </div>
 
                 {preview.length > 0 && (
-                    <div className="bg-slate-100 p-4 text-xs font-mono overflow-x-auto">
-                        <p className="font-bold mb-2">Preview ({stats.total} rows detected)</p>
-                        <table className="w-full text-left">
-                            <thead>
+                    <div className="bg-black/20 border border-white/5 p-4 rounded-xl text-[10px] font-mono overflow-x-auto">
+                        <p className="font-bold text-slate-300 mb-2 uppercase tracking-tight">Preview ({stats.total} rows detected)</p>
+                        <table className="w-full text-left text-slate-400">
+                            <thead className="text-slate-500">
                                 <tr>
                                     <th>Date</th>
                                     <th>Home</th>
@@ -188,16 +193,43 @@ export function DataUploader() {
 
                     {/* Current DB Stats */}
                     {dbStats.length > 0 && (
-                        <div className="bg-slate-100 p-3 mb-3 text-xs">
-                            <p className="font-bold mb-2">📊 Current Data in DB:</p>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                {dbStats.map(s => (
-                                    <div key={s.league} className="bg-white p-2 border border-gray-200">
-                                        <span className="font-bold">{s.league}</span>: {s.count} matches
-                                        <br />
-                                        <span className="text-gray-500">Latest: {s.latestDate}</span>
-                                    </div>
-                                ))}
+                        <div className="bg-black/20 border border-white/5 p-4 rounded-xl mb-4">
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">📊 Database Overview</p>
+                            {/* Sync Status Cards */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                                {[
+                                    { id: 'SA', name: 'Serie A', flag: 'it' },
+                                    { id: 'PL', name: 'Premier League', flag: 'gb' },
+                                    { id: 'LL', name: 'La Liga', flag: 'es' },
+                                    { id: 'BL', name: 'Bundesliga', flag: 'de' },
+                                    { id: 'L1', name: 'Ligue 1', flag: 'fr' }
+                                ].map(lg => {
+                                    const lgStats = dbStats.find(s => s.league === lg.id)
+                                    return (
+                                        <div key={lg.id} className="glass-panel border-white/5 p-3 rounded-lg flex items-center justify-between group hover:bg-white/10 transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-6 h-4 overflow-hidden rounded-sm shadow-sm grayscale group-hover:grayscale-0 transition-all border border-white/10">
+                                                    <img
+                                                        src={`https://flagcdn.com/${lg.flag}.svg`}
+                                                        alt={lg.name}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <div className="text-[10px] font-bold text-white flex items-center gap-1 uppercase tracking-tighter">
+                                                        {lg.id}
+                                                    </div>
+                                                    <div className="text-[8px] text-slate-500 uppercase tracking-widest leading-none">
+                                                        {lgStats ? `Latest: ${lgStats.latestDate}` : 'No data'}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="text-[10px] font-mono text-slate-400 bg-white/5 px-1.5 py-0.5 rounded">
+                                                {lgStats?.count || 0}
+                                            </div>
+                                        </div>
+                                    )
+                                })}
                             </div>
                         </div>
                     )}

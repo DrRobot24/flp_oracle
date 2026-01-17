@@ -1,0 +1,15 @@
+{
+  "match": "Napoli vs Milan",
+  "scraped_at": "2026-01-17T21:53:49.820478",
+  "total_articles": 39,
+  "home_team": {
+    "name": "Napoli",
+    "relevant_articles": 0,
+    "articles": []
+  },
+  "away_team": {
+    "name": "Milan",
+    "relevant_articles": 0,
+    "articles": []
+  }
+}

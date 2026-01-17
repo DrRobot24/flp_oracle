@@ -1,6 +1,8 @@
 import { ReactNode } from "react"
+import { Link, NavLink } from 'react-router-dom'
 import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
+import { LogOut, User, LayoutDashboard, History, Trophy } from 'lucide-react'
 import { AdSpace } from "@/components/ads/AdSpace"
 
 interface MainLayoutProps {
@@ -16,25 +18,58 @@ export function MainLayout({ children }: MainLayoutProps) {
             <header className="sticky top-0 z-50 w-full border-b border-glass-border bg-glass-gradient backdrop-blur-xl">
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <h1 className="text-2xl font-black tracking-tighter text-white">
-                            FLP<span className="text-gradient-primary">.PRO</span>
-                        </h1>
-                        <span className="hidden md:inline-flex px-2 py-0.5 rounded text-[10px] font-bold bg-white/10 text-white/60 border border-white/10 uppercase tracking-widest">
-                            Oracle Engine
-                        </span>
+                        <Link to="/" className="flex items-center gap-2 group">
+                            <div className="text-xl font-black italic tracking-tighter text-white group-hover:text-primary transition-colors">
+                                FLP<span className="text-primary group-hover:text-white">.PRO</span>
+                            </div>
+                            <div className="hidden md:block text-[10px] font-bold px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-400 uppercase tracking-widest">
+                                Oracle Engine
+                            </div>
+                        </Link>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                        <span className="text-xs text-slate-400 hidden sm:inline-block">
-                            {user?.email}
-                        </span>
-                        <Button
-                            variant="outline"
-                            onClick={() => signOut()}
-                            className="glass-button border-white/10 hover:bg-white/10 text-xs h-8 text-white"
+                    {/* Navigation Links */}
+                    <nav className="hidden lg:flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/5">
+                        <NavLink
+                            to="/"
+                            className={({ isActive }) => `flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${isActive ? 'bg-primary text-white shadow-neon' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
                         >
-                            Log Out
-                        </Button>
+                            <LayoutDashboard size={14} /> Dashboard
+                        </NavLink>
+                        <NavLink
+                            to="/predictions"
+                            className={({ isActive }) => `flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${isActive ? 'bg-primary text-white shadow-neon' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                        >
+                            <History size={14} /> Predictions
+                        </NavLink>
+                        <NavLink
+                            to="/leaderboard"
+                            className={({ isActive }) => `flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${isActive ? 'bg-primary text-white shadow-neon' : 'text-slate-400 hover:text-white hover:bg-white/5'}`}
+                        >
+                            <Trophy size={14} /> Leaderboard
+                        </NavLink>
+                    </nav>
+
+                    <div className="flex items-center gap-4">
+                        <div className="hidden sm:flex flex-col items-end">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Logged as</span>
+                            <span className="text-xs font-medium text-slate-200">{user?.email}</span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <Link to="/profile">
+                                <Button variant="outline" className="h-9 w-9 p-0 rounded-full border-white/10 hover:bg-white/5">
+                                    <User size={16} className="text-slate-300" />
+                                </Button>
+                            </Link>
+                            <Button
+                                variant="outline"
+                                className="h-9 px-3 text-[10px] font-bold uppercase tracking-widest border-white/10 hover:bg-white/5 text-rose-400"
+                                onClick={() => signOut()}
+                            >
+                                <LogOut className="mr-2 h-3.5 w-3.5" /> Log Out
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </header>
