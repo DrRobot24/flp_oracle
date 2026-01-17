@@ -10,7 +10,6 @@ import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Responsive
 import { DataUploader } from '@/components/DataUploader'
 import { UserPrediction } from '@/components/UserPrediction'
 import { DatabaseStats } from '@/components/DatabaseStats'
-import { MyPredictionsScore } from '@/components/MyPredictionsScore'
 import { AIInsights } from '@/components/AIInsights'
 import { HeadToHead } from '@/components/HeadToHead'
 import { api, HeadToHead as H2HType } from '@/lib/api'
@@ -444,8 +443,7 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-        <MyPredictionsScore />
+      <div className="mt-8">
         <DatabaseStats />
       </div>
     </MainLayout>

@@ -77,21 +77,23 @@ export function MyPredictionsScore() {
 
                 // Check if result is stored in the prediction itself
                 if (pred.actual_home_goals !== null && pred.actual_away_goals !== null) {
-                    const outcome: 'HOME_WIN' | 'DRAW' | 'AWAY_WIN' = 
+                    const outcome: 'HOME_WIN' | 'DRAW' | 'AWAY_WIN' =
                         pred.actual_home_goals > pred.actual_away_goals ? 'HOME_WIN' :
-                        pred.actual_home_goals < pred.actual_away_goals ? 'AWAY_WIN' : 'DRAW'
+                            pred.actual_home_goals < pred.actual_away_goals ? 'AWAY_WIN' : 'DRAW'
 
                     result.actualResult = {
                         home_goals: pred.actual_home_goals,
                         away_goals: pred.actual_away_goals,
                         outcome
                     }
-                    
+
                     // Convert user_prediction ('1', 'X', '2') to outcome format
-                    const userOutcome = 
+                    // Convert user_prediction to outcome format (normalized)
+                    const userOutcome =
                         pred.user_prediction === '1' || pred.user_prediction === 'HOME_WIN' ? 'HOME_WIN' :
-                        pred.user_prediction === '2' || pred.user_prediction === 'AWAY_WIN' ? 'AWAY_WIN' : 'DRAW'
-                    
+                            pred.user_prediction === '2' || pred.user_prediction === 'AWAY_WIN' ? 'AWAY_WIN' :
+                                'DRAW'
+
                     result.isCorrect = userOutcome === outcome
                     result.points = result.isCorrect ? result.stake : -result.stake
                 } else {
@@ -108,21 +110,22 @@ export function MyPredictionsScore() {
 
                     if (matchData && matchData.length > 0) {
                         const match = matchData[0]
-                        const outcome: 'HOME_WIN' | 'DRAW' | 'AWAY_WIN' = 
+                        const outcome: 'HOME_WIN' | 'DRAW' | 'AWAY_WIN' =
                             match.home_goals > match.away_goals ? 'HOME_WIN' :
-                            match.home_goals < match.away_goals ? 'AWAY_WIN' : 'DRAW'
+                                match.home_goals < match.away_goals ? 'AWAY_WIN' : 'DRAW'
 
                         result.actualResult = {
                             home_goals: match.home_goals,
                             away_goals: match.away_goals,
                             outcome
                         }
-                        
-                        // Convert user_prediction ('1', 'X', '2') to outcome format
-                        const userOutcome = 
+
+                        // Convert user_prediction to outcome format (normalized)
+                        const userOutcome =
                             pred.user_prediction === '1' || pred.user_prediction === 'HOME_WIN' ? 'HOME_WIN' :
-                            pred.user_prediction === '2' || pred.user_prediction === 'AWAY_WIN' ? 'AWAY_WIN' : 'DRAW'
-                        
+                                pred.user_prediction === '2' || pred.user_prediction === 'AWAY_WIN' ? 'AWAY_WIN' :
+                                    'DRAW'
+
                         result.isCorrect = userOutcome === outcome
                         result.points = result.isCorrect ? result.stake : -result.stake
                     }
@@ -182,7 +185,7 @@ export function MyPredictionsScore() {
                     <span className="text-xs uppercase tracking-widest text-blue-400 font-bold">Le Mie Previsioni</span>
                 </div>
                 <div className="text-center text-white/50 py-4">
-                    Nessuna previsione salvata.<br/>
+                    Nessuna previsione salvata.<br />
                     <span className="text-xs">Usa il pannello "La Tua Previsione" per iniziare!</span>
                 </div>
             </div>
@@ -190,8 +193,8 @@ export function MyPredictionsScore() {
     }
 
     const predictionToLabel = (pred: string) => {
-        if (pred === 'HOME_WIN') return '1'
-        if (pred === 'AWAY_WIN') return '2'
+        if (pred === '1' || pred === 'HOME_WIN') return '1'
+        if (pred === '2' || pred === 'AWAY_WIN') return '2'
         return 'X'
     }
 
@@ -208,11 +211,10 @@ export function MyPredictionsScore() {
                 </div>
                 <div className="flex items-center gap-3">
                     {/* Score Badge */}
-                    <div className={`px-3 py-1 rounded-full font-black text-lg ${
-                        totalScore > 0 ? 'bg-green-500/30 text-green-400' :
+                    <div className={`px-3 py-1 rounded-full font-black text-lg ${totalScore > 0 ? 'bg-green-500/30 text-green-400' :
                         totalScore < 0 ? 'bg-red-500/30 text-red-400' :
-                        'bg-gray-500/30 text-gray-400'
-                    }`}>
+                            'bg-gray-500/30 text-gray-400'
+                        }`}>
                         {totalScore > 0 ? '+' : ''}{totalScore} pts
                     </div>
                 </div>
@@ -238,21 +240,19 @@ export function MyPredictionsScore() {
             <div className="space-y-1.5 max-h-48 overflow-y-auto">
                 {predictions.slice(0, 10).map(pred => (
                     <div key={pred.id}>
-                        <div 
-                            className={`flex items-center gap-2 text-xs p-1.5 rounded ${
-                                pred.actualResult 
-                                    ? pred.isCorrect 
-                                        ? 'bg-green-500/20 border-l-2 border-green-500' 
-                                        : 'bg-red-500/20 border-l-2 border-red-500'
-                                    : 'bg-yellow-500/10 border-l-2 border-yellow-500'
-                            }`}
+                        <div
+                            className={`flex items-center gap-2 text-xs p-1.5 rounded ${pred.actualResult
+                                ? pred.isCorrect
+                                    ? 'bg-green-500/20 border-l-2 border-green-500'
+                                    : 'bg-red-500/20 border-l-2 border-red-500'
+                                : 'bg-yellow-500/10 border-l-2 border-yellow-500'
+                                }`}
                         >
                             {/* Prediction Badge */}
-                            <span className={`w-5 h-5 flex items-center justify-center rounded text-[10px] font-black ${
-                                pred.user_prediction === 'HOME_WIN' ? 'bg-green-500 text-white' :
-                                pred.user_prediction === 'AWAY_WIN' ? 'bg-red-500 text-white' :
-                                'bg-gray-500 text-white'
-                            }`}>
+                            <span className={`w-5 h-5 flex items-center justify-center rounded text-[10px] font-black ${(pred.user_prediction === '1' || pred.user_prediction === 'HOME_WIN') ? 'bg-emerald-500 text-white' :
+                                (pred.user_prediction === '2' || pred.user_prediction === 'AWAY_WIN') ? 'bg-rose-500 text-white' :
+                                    'bg-slate-500 text-white'
+                                }`}>
                                 {predictionToLabel(pred.user_prediction)}
                             </span>
 
@@ -276,7 +276,7 @@ export function MyPredictionsScore() {
                             ) : (
                                 <>
                                     {isAdmin ? (
-                                        <button 
+                                        <button
                                             onClick={() => {
                                                 setEditingId(pred.id)
                                                 setEditScore({ home: 0, away: 0 })
@@ -296,30 +296,30 @@ export function MyPredictionsScore() {
                         {isAdmin && editingId === pred.id && (
                             <div className="bg-blue-900/50 p-2 rounded mt-1 flex items-center gap-2">
                                 <span className="text-[10px] text-white/70">Risultato:</span>
-                                <input 
-                                    type="number" 
-                                    min="0" 
+                                <input
+                                    type="number"
+                                    min="0"
                                     max="15"
                                     value={editScore.home}
                                     onChange={e => setEditScore(s => ({ ...s, home: parseInt(e.target.value) || 0 }))}
                                     className="w-10 bg-white/10 text-center rounded text-sm"
                                 />
                                 <span className="text-white/50">-</span>
-                                <input 
-                                    type="number" 
-                                    min="0" 
+                                <input
+                                    type="number"
+                                    min="0"
                                     max="15"
                                     value={editScore.away}
                                     onChange={e => setEditScore(s => ({ ...s, away: parseInt(e.target.value) || 0 }))}
                                     className="w-10 bg-white/10 text-center rounded text-sm"
                                 />
-                                <button 
+                                <button
                                     onClick={() => saveActualResult(pred.id)}
                                     className="bg-green-500 hover:bg-green-600 px-2 py-0.5 rounded text-[10px] font-bold"
                                 >
                                     ✓ Salva
                                 </button>
-                                <button 
+                                <button
                                     onClick={() => setEditingId(null)}
                                     className="bg-red-500/50 hover:bg-red-500 px-2 py-0.5 rounded text-[10px]"
                                 >
