@@ -10,7 +10,7 @@ interface AdSpaceProps {
     testMode?: boolean // Force placeholder even if IDs are present
 }
 
-export function AdSpace({ type, className, adClient, adSlot, testMode = false }: AdSpaceProps) {
+export function AdSpace({ type, className, adClient = "ca-pub-2061271910544675", adSlot, testMode = false }: AdSpaceProps) {
     const sizeMap = {
         leaderboard: { w: '728px', h: '90px', label: 'Leaderboard (728x90)' },
         skyscraper: { w: '300px', h: '600px', label: 'Skyscraper (300x600)' },
