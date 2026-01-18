@@ -1,0 +1,8 @@
+{
+    "rewrites": [
+        {
+            "source": "/api/football-data/:path*",
+            "destination": "https://www.football-data.co.uk/:path*"
+        }
+    ]
+}

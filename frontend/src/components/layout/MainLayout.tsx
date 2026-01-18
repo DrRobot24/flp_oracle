@@ -105,8 +105,23 @@ export function MainLayout({ children }: MainLayoutProps) {
                 </div>
             </main>
 
-            <footer className="py-8 text-center text-xs text-slate-600">
-                <p>&copy; 2026 FLP Oracle. All rights reserved.</p>
+            <footer className="py-12 border-t border-white/5 mt-auto">
+                <div className="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div className="flex items-center gap-2">
+                        <div className="text-lg font-black italic tracking-tighter text-slate-400">
+                            FLP<span className="text-slate-600">.PRO</span>
+                        </div>
+                    </div>
+
+                    <nav className="flex gap-8">
+                        <Link to="/about" className="text-xs font-bold text-slate-500 hover:text-primary transition-colors uppercase tracking-widest">About</Link>
+                        <Link to="/privacy" className="text-xs font-bold text-slate-500 hover:text-primary transition-colors uppercase tracking-widest">Privacy Policy</Link>
+                        <a href="#" className="text-xs font-bold text-slate-500 hover:text-primary transition-colors uppercase tracking-widest">Cookie Policy</a>
+                        <a href="mailto:support@flp-oracle.com" className="text-xs font-bold text-slate-500 hover:text-primary transition-colors uppercase tracking-widest">Contact</a>
+                    </nav>
+
+                    <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">&copy; 2026 FLP Oracle Engine. All rights reserved.</p>
+                </div>
             </footer>
         </div>
     )

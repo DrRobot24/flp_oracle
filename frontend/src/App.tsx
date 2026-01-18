@@ -5,6 +5,8 @@ import { Dashboard } from "@/pages/Dashboard"
 import { Predictions } from "@/pages/Predictions"
 import { Profile } from "@/pages/Profile"
 import { Leaderboard } from "@/pages/Leaderboard"
+import { About } from "@/pages/About"
+import { Privacy } from "@/pages/Privacy"
 
 // Protected Route Component
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
@@ -39,6 +41,10 @@ function App() {
           <Route path="/predictions" element={<ProtectedRoute><Predictions /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/leaderboard" element={<ProtectedRoute><Leaderboard /></ProtectedRoute>} />
+
+          {/* Public Legal Routes */}
+          <Route path="/about" element={<About />} />
+          <Route path="/privacy" element={<Privacy />} />
 
           {/* Admin routes will go here later */}
           {/* <Route path="/upload" element={<ProtectedRoute adminOnly><UploadPage /></ProtectedRoute>} /> */}

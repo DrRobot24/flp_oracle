@@ -394,7 +394,7 @@ export function Dashboard() {
               <h3 className="text-sm font-bold text-white">Monte Carlo Phase Space</h3>
             </CardHeader>
             <CardContent className="flex-1 w-full min-h-[400px] p-4">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
                 <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.5} />
                   <XAxis type="number" dataKey="x" name="Attack" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
@@ -461,7 +461,7 @@ function WaveChart({ team, wave, color }: { team: string, wave: WaveAnalysis, co
         </span>
       </CardHeader>
       <CardContent className="flex-1 min-h-[150px] p-2">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
           <LineChart data={wave.signal.map((v, i) => ({ i, v, t: wave.reconstructed[i] }))}>
             <Line type="monotone" dataKey="t" stroke={color} strokeWidth={2} dot={false} />
             <Line type="stepAfter" dataKey="v" stroke="#94a3b8" strokeWidth={1} strokeDasharray="3 3" dot={false} opacity={0.5} />
