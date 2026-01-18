@@ -1,6 +1,6 @@
 """
 NEWS SCRAPER - FLP Oracle
-Scrapes football news from multiple sources and saves structured JSON output.
+Scrapes football news from multiple sources and saves to Supabase DB.
 Follows rate limiting and ethical scraping practices.
 
 Usage:
@@ -26,6 +26,7 @@ if sys.platform == 'win32':
 import requests
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+from supabase import create_client, Client
 
 # Setup logging
 logging.basicConfig(
@@ -36,6 +37,21 @@ logger = logging.getLogger(__name__)
 
 # Load environment
 load_dotenv()
+
+# Supabase Configuration
+SUPABASE_URL = os.getenv("VITE_SUPABASE_URL") # Re-using frontend env var if available
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") # We need SERVICE_ROLE for writing!
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    logger.warning("Supabase credentials not found in env. Data will only be saved locally.")
+    supabase = None
+else:
+    try:
+        supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        logger.info("Connected to Supabase")
+    except Exception as e:
+        logger.error(f"Failed to connect to Supabase: {e}")
+        supabase = None
 
 # Configuration
 RATE_LIMIT_SECONDS = 3
@@ -111,42 +127,85 @@ class NewsScraper:
             time.sleep(sleep_time)
         self.last_request_time = time.time()
     
-    def _get_cache_path(self, source: str, query: str = "all") -> Path:
-        """Generate cache file path"""
-        key = f"{source}_{query}".lower().replace(" ", "_")
-        hash_key = hashlib.md5(key.encode()).hexdigest()[:8]
-        return CACHE_DIR / f"{hash_key}_{source.lower().replace(' ', '_')}.json"
-    
-    def _is_cache_valid(self, cache_path: Path) -> bool:
-        """Check if cache is still valid"""
-        if not cache_path.exists():
-            return False
+    def _class_news(self, text: str) -> str:
+        """Simple keyword based classification"""
+        text = text.lower()
+        if any(w in text for w in ['injury', 'injured', 'out', 'sidelined', 'surgery', 'miss']):
+            return 'injury'
+        if any(w in text for w in ['suspended', 'ban', 'red card']):
+            return 'suspension'
+        if any(w in text for w in ['coach', 'manager', 'sack', 'appoint', 'boss']):
+            return 'coach_change'
+        if any(w in text for w in ['win', 'loss', 'draw', 'streak', 'form', 'victory']):
+            return 'form'
+        if any(w in text for w in ['derby', 'final', 'cup', 'motivation', 'must win']):
+            return 'motivation'
+        return 'other'
+
+    def _determine_sentiment(self, text: str, category: str) -> float:
+        """Simple heuristic sentiment analysis"""
+        text = text.lower()
+        if category == 'injury' or category == 'suspension':
+            return -0.8 # Usually bad news
         
-        mtime = datetime.fromtimestamp(cache_path.stat().st_mtime)
-        age = datetime.now() - mtime
-        return age < timedelta(minutes=CACHE_TTL_MINUTES)
-    
-    def _load_cache(self, cache_path: Path) -> Optional[list[dict]]:
-        """Load cached articles"""
-        if self._is_cache_valid(cache_path):
-            try:
-                with open(cache_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    logger.info(f"Loaded {len(data)} articles from cache")
-                    return data
-            except Exception as e:
-                logger.warning(f"Cache load failed: {e}")
-        return None
-    
-    def _save_cache(self, cache_path: Path, articles: list[dict]):
-        """Save articles to cache"""
+        # Simple keywords
+        pos_words = ['win', 'victory', 'great', 'boost', 'return', 'fit', 'ready']
+        neg_words = ['loss', 'defeat', 'crisis', 'problem', 'issue', 'doubt']
+        
+        score = 0
+        for w in pos_words: 
+            if w in text: score += 0.2
+        for w in neg_words: 
+            if w in text: score -= 0.2
+            
+        return max(-1.0, min(1.0, score))
+
+    def save_to_db(self, article: NewsArticle, team_filter: str = ""):
+        """Save article to Supabase if it doesn't exist"""
+        if not supabase:
+            return
+
         try:
-            with open(cache_path, 'w', encoding='utf-8') as f:
-                json.dump(articles, f, indent=2, ensure_ascii=False)
-            logger.info(f"Saved {len(articles)} articles to cache")
+            # Check if exists by URL
+            res = supabase.table('news').select('id').eq('url', article.url).execute()
+            if res.data and len(res.data) > 0:
+                logger.debug(f"Article already exists: {article.title[:30]}...")
+                return
+
+            # Analyze Category & Sentiment (Basic Logic)
+            category = self._class_news(article.title + " " + article.raw_text)
+            sentiment = self._determine_sentiment(article.title + " " + article.raw_text, category)
+            
+            # Use team_filter as team_name if provided, otherwise generic
+            # In a real scraper, we would extract team names from text via NER
+            team_name = team_filter if team_filter else "General" 
+            
+            # If scraping 'all', we might want to skip general news or try to guess team
+            if not team_name or team_name == "General":
+                # Very basic connection to active conversation context if possible
+                # For now, we skip saving 'General' news to DB to avoid pollution
+                # unless we detected a team name in the text (TODO)
+                pass
+
+            row = {
+                "team_name": team_name,
+                "title": article.title,
+                "summary": article.raw_text[:200] if article.raw_text else "",
+                "url": article.url,
+                "source": article.source,
+                "published_at": article.published_at if article.published_at else datetime.now().isoformat(),
+                "category": category,
+                "sentiment": sentiment,
+                "reliability": article.reliability,
+                "metadata": {"scraped_at": article.scraped_at}
+            }
+
+            supabase.table('news').insert(row).execute()
+            logger.info(f"💾 Saved to DB: {article.title[:40]}... ({category})")
+            
         except Exception as e:
-            logger.warning(f"Cache save failed: {e}")
-    
+            logger.error(f"DB Save Error: {e}")
+
     def fetch_rss(self, source: dict) -> list[NewsArticle]:
         """Fetch articles from RSS feed"""
         articles = []
@@ -262,35 +321,20 @@ class NewsScraper:
         return articles
     
     def scrape_all_sources(self, team_filter: str = "") -> list[dict]:
-        """Scrape all configured sources"""
+        """Scrape all configured sources and push to DB"""
         all_articles = []
         
         for source in NEWS_SOURCES:
-            # Check cache first
-            cache_path = self._get_cache_path(source['name'], team_filter or "all")
-            cached = self._load_cache(cache_path)
-            
-            if cached:
-                all_articles.extend(cached)
-                continue
-            
             # Fetch fresh data
             if source.get("rss_url"):
                 articles = self.fetch_rss(source)
             else:
                 articles = self.fetch_html(source, team_filter)
             
-            # Convert to dicts and cache
-            article_dicts = [a.to_dict() for a in articles]
-            if article_dicts:
-                self._save_cache(cache_path, article_dicts)
-                all_articles.extend(article_dicts)
-        
-        # Sort by date (newest first)
-        all_articles.sort(
-            key=lambda x: x.get('published_at', ''),
-            reverse=True
-        )
+            # Process and Save
+            for article in articles:
+                self.save_to_db(article, team_filter)
+                all_articles.append(article.to_dict())
         
         return all_articles
     
@@ -298,44 +342,21 @@ class NewsScraper:
         """Scrape news relevant to a specific match"""
         logger.info(f"Scraping news for match: {home_team} vs {away_team}")
         
-        all_articles = self.scrape_all_sources()
+        # We define a helper to scrape for a specific team
+        # In a real scenario we'd query specifically for these keywords
         
-        # Filter by team mentions (simple keyword matching)
-        def mentions_team(article: dict, team: str) -> bool:
-            team_lower = team.lower()
-            keywords = team_lower.split()
-            title_lower = article.get('title', '').lower()
-            text_lower = article.get('raw_text', '').lower()
-            content = title_lower + " " + text_lower
-            
-            return any(kw in content for kw in keywords if len(kw) > 2)
+        # Scrape for Home Team
+        home_arts = self.scrape_all_sources(home_team)
         
-        home_news = [a for a in all_articles if mentions_team(a, home_team)]
-        away_news = [a for a in all_articles if mentions_team(a, away_team)]
+        # Scrape for Away Team
+        away_arts = self.scrape_all_sources(away_team)
         
-        result = {
+        return {
             "match": f"{home_team} vs {away_team}",
             "scraped_at": datetime.now().isoformat(),
-            "total_articles": len(all_articles),
-            "home_team": {
-                "name": home_team,
-                "relevant_articles": len(home_news),
-                "articles": home_news[:10]  # Limit to 10
-            },
-            "away_team": {
-                "name": away_team,
-                "relevant_articles": len(away_news),
-                "articles": away_news[:10]
-            }
+            "home_count": len(home_arts),
+            "away_count": len(away_arts)
         }
-        
-        # Save match-specific output
-        output_path = CACHE_DIR / f"match_{home_team}_{away_team}.json".replace(" ", "_").lower()
-        with open(output_path, 'w', encoding='utf-8') as f:
-            json.dump(result, f, indent=2, ensure_ascii=False)
-        
-        logger.info(f"Saved match news to {output_path}")
-        return result
 
 
 def main():
@@ -353,19 +374,13 @@ def main():
     scraper = NewsScraper()
     
     if args.match:
-        result = scraper.scrape_for_match(args.match[0], args.match[1])
-        print(f"\n✅ Found {result['home_team']['relevant_articles']} articles for {args.match[0]}")
-        print(f"✅ Found {result['away_team']['relevant_articles']} articles for {args.match[1]}")
+        scraper.scrape_for_match(args.match[0], args.match[1])
+        print(f"\n✅ Scrape completed for {args.match[0]} vs {args.match[1]}")
+    elif args.team:
+        articles = scraper.scrape_all_sources(args.team)
+        print(f"\n✅ Scraped {len(articles)} articles for {args.team}")
     else:
-        articles = scraper.scrape_all_sources(args.team or "")
-        print(f"\n✅ Scraped {len(articles)} total articles")
-        
-        # Show sample
-        if articles:
-            print("\n📰 Latest articles:")
-            for article in articles[:5]:
-                print(f"  - [{article['source']}] {article['title'][:60]}...")
-
+        print("Please specify --team or --match")
 
 if __name__ == "__main__":
     main()
