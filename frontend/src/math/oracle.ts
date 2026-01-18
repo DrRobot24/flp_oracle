@@ -7,7 +7,7 @@
 import { PoissonModel, MatchProbabilities } from './poisson';
 import { GeometricEngine, PhasePoint } from './geometric';
 import { analyzeFormWave, matchesToSignal, WaveAnalysis } from './fourier';
-import { TeamNewsImpact, calculateTeamNewsImpact, NewsImpactItem } from './newsImpact';
+import { calculateTeamNewsImpact, NewsImpactItem } from './newsImpact';
 
 // Full prediction output matching the desired JSON format
 export interface OraclePrediction {
