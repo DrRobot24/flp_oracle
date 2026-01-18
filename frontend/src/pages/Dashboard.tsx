@@ -68,13 +68,8 @@ export function Dashboard() {
         awayXG: Number(naiveAwayXG.toFixed(2))
       }))
 
-      // Prepare Trajectory Data (Real History)
-      const geoPoints: PhasePoint[] = homeStats.recentMatches.map((m, i) => ({
-        time: i,
-        x: m.home_team === params.homeTeam ? m.home_goals : m.away_goals,
-        y: m.home_team === params.homeTeam ? m.away_goals : m.home_goals,
-        className: "history"
-      }))
+      // Prepare Trajectory Data (Real History) using Rolling Average
+      const geoPoints = calculateRollingAverage(homeStats.recentMatches, params.homeTeam, 5)
 
       setTrajectory(geoPoints)
       setSimulationCloud([])
@@ -397,8 +392,8 @@ export function Dashboard() {
               <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
                 <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.5} />
-                  <XAxis type="number" dataKey="x" name="Attack" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis type="number" dataKey="y" name="Defense" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                  <XAxis type="number" dataKey="x" name="Attack Form" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} label={{ value: 'Attack Form (Avg Goals)', position: 'bottom', offset: 0, fill: '#94a3b8', fontSize: 10 }} />
+                  <YAxis type="number" dataKey="y" name="Defense Form" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} label={{ value: 'Defense Form (Avg Conceded)', angle: -90, position: 'left', offset: 10, fill: '#94a3b8', fontSize: 10 }} />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }}
                     cursor={{ strokeDasharray: '3 3' }}
@@ -471,3 +466,51 @@ function WaveChart({ team, wave, color }: { team: string, wave: WaveAnalysis, co
     </Card>
   )
 }
+
+/**
+ * Calculates a rolling average for match stats to smooth out the trajectory.
+ * Window size of 5 matches is standard for "Form".
+ */
+function calculateRollingAverage(matches: any[], team: string, windowSize: number = 5): PhasePoint[] {
+  const points: PhasePoint[] = []
+
+  // Create cumulative stats to avoid re-looping
+  for (let i = 0; i < matches.length; i++) {
+    // We need at least 'windowSize' matches to form a point
+    if (i < windowSize - 1) continue
+
+    const window = matches.slice(i - windowSize + 1, i + 1)
+    let goalsFor = 0
+    let goalsAgainst = 0
+
+    window.forEach(m => {
+      if (m.home_team === team) {
+        goalsFor += m.home_goals
+        goalsAgainst += m.away_goals
+      } else {
+        goalsFor += m.away_goals
+        goalsAgainst += m.home_goals
+      }
+    })
+
+    points.push({
+      time: i,
+      x: Number((goalsFor / windowSize).toFixed(2)),
+      y: Number((goalsAgainst / windowSize).toFixed(2)),
+      className: "history"
+    })
+  }
+
+  // If we have very few matches, fallback to raw data but distinct
+  if (points.length === 0 && matches.length > 0) {
+    return matches.map((m, i) => ({
+      time: i,
+      x: m.home_team === team ? m.home_goals : m.away_goals,
+      y: m.home_team === team ? m.away_goals : m.home_goals,
+      className: "history"
+    }))
+  }
+
+  return points
+}
+
