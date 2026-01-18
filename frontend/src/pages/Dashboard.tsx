@@ -16,9 +16,12 @@ import { api, HeadToHead as H2HType } from '@/lib/api'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { AdSpace } from '@/components/ads/AdSpace'
 import { NewsImpactItem } from '@/math/newsImpact'
-import { Activity, Zap, BarChart3, Newspaper } from 'lucide-react'
+import { Activity, Zap, BarChart3 } from 'lucide-react'
+
+import { useAuth } from '@/contexts/AuthContext'
 
 export function Dashboard() {
+  const { isAdmin } = useAuth()
   const [teams, setTeams] = useState<string[]>([])
   const [params, setParams] = useState({
     homeTeam: '',
@@ -178,9 +181,11 @@ export function Dashboard() {
   return (
     <MainLayout>
       {/* Admin / Data Upload Only */}
-      <div className="mb-6">
-        <DataUploader />
-      </div>
+      {isAdmin && (
+        <div className="mb-6">
+          <DataUploader />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
 
