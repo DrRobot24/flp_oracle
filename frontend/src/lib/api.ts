@@ -12,6 +12,9 @@ export interface TeamStats {
     recentMatches: any[]
 }
 
+// Re-using the interface from our math engine for consistency
+import { NewsImpactItem } from '@/math/newsImpact'
+
 export interface HeadToHead {
     totalMatches: number
     homeWins: number
@@ -149,5 +152,34 @@ export const api = {
             avgAwayGoalsAgainst: aCount ? aGoalsAgainst / aCount : (goalsAgainst / matches.length || 0),
             recentMatches: matches
         }
+    },
+
+    // Get active news for a team (last 7 days by default)
+    async getNews(team: string): Promise<NewsImpactItem[]> {
+        const sevenDaysAgo = new Date()
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+
+        const { data, error } = await supabase
+            .from('news')
+            .select('*')
+            .eq('team_name', team)
+            .gte('published_at', sevenDaysAgo.toISOString())
+            .order('published_at', { ascending: false })
+
+        if (error || !data) {
+            console.error('Error fetching news:', error)
+            return []
+        }
+
+        // Transform DB rows to internal NewsImpactItem format
+        return data.map(row => ({
+            teamName: row.team_name,
+            category: row.category,
+            sentiment: row.sentiment,
+            sourceReliability: row.reliability,
+            publishedAt: new Date(row.published_at),
+            rawText: row.title + (row.summary ? ` - ${row.summary}` : '')
+        }))
     }
 }
+

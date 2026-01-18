@@ -15,7 +15,8 @@ import { HeadToHead } from '@/components/HeadToHead'
 import { api, HeadToHead as H2HType } from '@/lib/api'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { AdSpace } from '@/components/ads/AdSpace'
-import { Activity, Zap, BarChart3 } from 'lucide-react'
+import { NewsImpactItem } from '@/math/newsImpact'
+import { Activity, Zap, BarChart3, Newspaper } from 'lucide-react'
 
 export function Dashboard() {
   const [teams, setTeams] = useState<string[]>([])
@@ -38,6 +39,10 @@ export function Dashboard() {
   const [dataLoading, setDataLoading] = useState(false)
   const [lastCalculatedParams, setLastCalculatedParams] = useState<string>('')
 
+  // News State
+  const [homeNews, setHomeNews] = useState<NewsImpactItem[]>([])
+  const [awayNews, setAwayNews] = useState<NewsImpactItem[]>([])
+
   // Load Teams on Mount
   useEffect(() => {
     api.getTeams().then(setTeams)
@@ -50,13 +55,17 @@ export function Dashboard() {
       setDataLoading(true)
       setH2hLoading(true)
 
-      const [homeStats, awayStats, h2h] = await Promise.all([
+      const [homeStats, awayStats, h2h, hNews, aNews] = await Promise.all([
         api.getTeamStats(params.homeTeam),
         api.getTeamStats(params.awayTeam),
-        api.getHeadToHead(params.homeTeam, params.awayTeam)
+        api.getHeadToHead(params.homeTeam, params.awayTeam),
+        api.getNews(params.homeTeam),
+        api.getNews(params.awayTeam)
       ])
 
       setHeadToHead(h2h)
+      setHomeNews(hNews)
+      setAwayNews(aNews)
       setH2hLoading(false)
 
       const naiveHomeXG = (homeStats.avgHomeGoalsFor + awayStats.avgAwayGoalsAgainst) / 2
@@ -96,7 +105,9 @@ export function Dashboard() {
         params.homeXG,
         params.awayXG,
         homeStats.recentMatches,
-        awayStats.recentMatches
+        awayStats.recentMatches,
+        homeNews,
+        awayNews
       )
 
       setResults(prediction)
@@ -379,6 +390,8 @@ export function Dashboard() {
             results={results}
             homeWave={homeWaveAnalysis}
             awayWave={awayWaveAnalysis}
+            homeNews={homeNews} // Passing news to AIInsights
+            awayNews={awayNews}
           />
 
           <div className="flex justify-center">
