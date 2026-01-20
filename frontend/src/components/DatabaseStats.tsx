@@ -67,8 +67,8 @@ export function DatabaseStats() {
                 <span className="text-white/50 ml-2 text-xs">Coverage</span>
             </div>
 
-            {/* League Breakdown - compact */}
-            <div className="space-y-1.5">
+            {/* League Breakdown - compact & scrollable */}
+            <div className="space-y-1.5 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                 {stats.leagues.map(league => {
                     const percentage = (league.count / stats.total) * 100
                     return (
@@ -76,7 +76,7 @@ export function DatabaseStats() {
                             <span className="text-sm w-6">{league.flag}</span>
                             <div className="flex-1">
                                 <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                                    <div 
+                                    <div
                                         className="h-full bg-gradient-to-r from-yellow-500 to-yellow-300"
                                         style={{ width: `${percentage}%` }}
                                     />
@@ -84,7 +84,7 @@ export function DatabaseStats() {
                             </div>
                             <span className="text-yellow-300 font-mono text-xs w-12 text-right">{league.count.toLocaleString()}</span>
                             <span className="text-[10px] opacity-40 w-24 text-right">
-                                {new Date(league.firstDate).toLocaleDateString('it-IT', {day:'2-digit', month:'short', year:'2-digit'})} → {new Date(league.lastDate).toLocaleDateString('it-IT', {day:'2-digit', month:'short', year:'2-digit'})}
+                                {new Date(league.firstDate).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' })} → {new Date(league.lastDate).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' })}
                             </span>
                         </div>
                     )

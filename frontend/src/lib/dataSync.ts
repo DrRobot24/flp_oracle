@@ -22,11 +22,36 @@ export interface SyncResult {
 // League Configurations - Season 2025-2026
 // URLs use local Vite proxy to bypass CORS
 export const LEAGUES: LeagueConfig[] = [
+    // --- MAIN LEAGUES (Europe Top 5 + Others) ---
     { name: 'Premier League', code: 'PL', url: '/api/football-data/mmz4281/2526/E0.csv' },
+    { name: 'Championship', code: 'E1', url: '/api/football-data/mmz4281/2526/E1.csv' },
     { name: 'Serie A', code: 'SA', url: '/api/football-data/mmz4281/2526/I1.csv' },
+    { name: 'Serie B', code: 'I2', url: '/api/football-data/mmz4281/2526/I2.csv' },
     { name: 'La Liga', code: 'LL', url: '/api/football-data/mmz4281/2526/SP1.csv' },
     { name: 'Bundesliga', code: 'BL', url: '/api/football-data/mmz4281/2526/D1.csv' },
-    { name: 'Ligue 1', code: 'L1', url: '/api/football-data/mmz4281/2526/F1.csv' }
+    { name: 'Ligue 1', code: 'L1', url: '/api/football-data/mmz4281/2526/F1.csv' },
+    { name: 'Eredivisie', code: 'N1', url: '/api/football-data/mmz4281/2526/N1.csv' },
+    { name: 'Primeira Liga', code: 'P1', url: '/api/football-data/mmz4281/2526/P1.csv' },
+    { name: 'Jupiler League', code: 'B1', url: '/api/football-data/mmz4281/2526/B1.csv' },
+    { name: 'Super Lig', code: 'T1', url: '/api/football-data/mmz4281/2526/T1.csv' },
+    { name: 'Ethniki Katigoria', code: 'G1', url: '/api/football-data/mmz4281/2526/G1.csv' },
+    { name: 'Scottish Premiership', code: 'SC0', url: '/api/football-data/mmz4281/2526/SC0.csv' },
+
+    // --- EXTRA LEAGUES (Worldwide) ---
+    // Note: These usually use /new/ folder on football-data.co.uk
+    { name: 'Argentina Primera', code: 'ARG', url: '/api/football-data/new/ARG.csv' },
+    { name: 'Brazil Serie A', code: 'BRA', url: '/api/football-data/new/BRA.csv' },
+    { name: 'USA MLS', code: 'USA', url: '/api/football-data/new/USA.csv' },
+    { name: 'Mexico Liga MX', code: 'MEX', url: '/api/football-data/new/MEX.csv' },
+    { name: 'Japan J-League', code: 'JPN', url: '/api/football-data/new/JPN.csv' },
+    { name: 'China Super League', code: 'CHN', url: '/api/football-data/new/CHN.csv' },
+    { name: 'Norway Eliteserien', code: 'NOR', url: '/api/football-data/new/NOR.csv' },
+    { name: 'Sweden Allsvenskan', code: 'SWE', url: '/api/football-data/new/SWE.csv' },
+    { name: 'Denmark Superliga', code: 'DNK', url: '/api/football-data/new/DNK.csv' },
+    { name: 'Poland Ekstraklasa', code: 'POL', url: '/api/football-data/new/POL.csv' },
+    { name: 'Russia Premier', code: 'RUS', url: '/api/football-data/new/RUS.csv' },
+    { name: 'Switzerland Super', code: 'SWZ', url: '/api/football-data/new/SWZ.csv' },
+    { name: 'Austria Bundesliga', code: 'AUT', url: '/api/football-data/new/AUT.csv' }
 ]
 
 const CURRENT_SEASON = '2025-2026'
@@ -40,7 +65,7 @@ function parseCSV(text: string, leagueCode: string): any[] {
         const result: string[] = []
         let current = ''
         let inQuotes = false
-        
+
         for (const char of row) {
             if (char === '"') {
                 inQuotes = !inQuotes
@@ -57,20 +82,20 @@ function parseCSV(text: string, leagueCode: string): any[] {
 
     const headers = rows[0].map(h => h.trim())
 
-    // Indices - Core fields
+    // Indices - Core fields (Flexible for Main vs Extra)
     const dateIdx = headers.indexOf('Date')
-    const homeIdx = headers.indexOf('HomeTeam')
-    const awayIdx = headers.indexOf('AwayTeam')
-    const fthgIdx = headers.indexOf('FTHG')
-    const ftagIdx = headers.indexOf('FTAG')
+    const homeIdx = headers.indexOf('HomeTeam') !== -1 ? headers.indexOf('HomeTeam') : headers.indexOf('Home')
+    const awayIdx = headers.indexOf('AwayTeam') !== -1 ? headers.indexOf('AwayTeam') : headers.indexOf('Away')
+    const fthgIdx = headers.indexOf('FTHG') !== -1 ? headers.indexOf('FTHG') : headers.indexOf('HG')
+    const ftagIdx = headers.indexOf('FTAG') !== -1 ? headers.indexOf('FTAG') : headers.indexOf('AG')
 
-    // Shot stats for xG estimation
+    // Shot stats for xG estimation (Main leagues only)
     const hstIdx = headers.indexOf('HST')  // Home Shots on Target
     const astIdx = headers.indexOf('AST')  // Away Shots on Target
     const hsIdx = headers.indexOf('HS')    // Home Shots
     const asIdx = headers.indexOf('AS')    // Away Shots
 
-    if (dateIdx === -1 || homeIdx === -1) {
+    if (dateIdx === -1 || homeIdx === -1 || awayIdx === -1) {
         throw new Error('CSV format error: required headers not found')
     }
 
@@ -149,7 +174,7 @@ export async function syncLeague(league: LeagueConfig, onProgress?: (msg: string
         onProgress?.(`Parsing ${league.name} data...`)
 
         const matches = parseCSV(text, league.code)
-        
+
         if (matches.length === 0) {
             return { league: league.name, success: false, matchesImported: 0, error: 'No matches parsed' }
         }
@@ -159,9 +184,9 @@ export async function syncLeague(league: LeagueConfig, onProgress?: (msg: string
         // Upsert to avoid duplicates (requires UNIQUE constraint on date, home_team, away_team)
         const { error } = await supabase
             .from('matches')
-            .upsert(matches, { 
+            .upsert(matches, {
                 onConflict: 'date,home_team,away_team',
-                ignoreDuplicates: false 
+                ignoreDuplicates: false
             })
 
         if (error) {
@@ -184,7 +209,7 @@ export async function syncAllLeagues(onProgress?: (msg: string) => void): Promis
     for (const league of LEAGUES) {
         const result = await syncLeague(league, onProgress)
         results.push(result)
-        
+
         // Small delay between requests to be nice to the server
         await new Promise(r => setTimeout(r, 500))
     }
@@ -205,7 +230,7 @@ export async function getSyncStats(): Promise<{ league: string; count: number; l
 
     // Group by league
     const stats: Record<string, { count: number; latestDate: string }> = {}
-    
+
     data.forEach(m => {
         if (!stats[m.league]) {
             stats[m.league] = { count: 0, latestDate: m.date }
@@ -234,18 +259,62 @@ export interface LeagueStats {
 
 const LEAGUE_NAMES: Record<string, string> = {
     'PL': 'Premier League',
-    'SA': 'Serie A', 
+    'E1': 'Championship',
+    'SA': 'Serie A',
+    'I2': 'Serie B',
     'LL': 'La Liga',
     'BL': 'Bundesliga',
-    'L1': 'Ligue 1'
+    'L1': 'Ligue 1',
+    'N1': 'Eredivisie',
+    'P1': 'Primeira Liga',
+    'B1': 'Jupiler League',
+    'T1': 'Super Lig',
+    'G1': 'Ethniki Katigoria',
+    'SC0': 'Scottish Premiership',
+    'ARG': 'Argentina Primera',
+    'BRA': 'Brazil Serie A',
+    'USA': 'USA MLS',
+    'MEX': 'Mexico Liga MX',
+    'JPN': 'Japan J-League',
+    'CHN': 'China Super League',
+    'NOR': 'Norway Eliteserien',
+    'SWE': 'Sweden Allsvenskan',
+    'DNK': 'Denmark Superliga',
+    'POL': 'Poland Ekstraklasa',
+    'RUS': 'Russia Premier',
+    'SWZ': 'Switzerland Super',
+    'AUT': 'Austria Bundesliga',
+    'CL': 'Champions League'
 }
 
 const LEAGUE_FLAGS: Record<string, string> = {
     'PL': '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
+    'E1': '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
     'SA': '🇮🇹',
+    'I2': '🇮🇹',
     'LL': '🇪🇸',
     'BL': '🇩🇪',
-    'L1': '🇫🇷'
+    'L1': '🇫🇷',
+    'N1': '🇳🇱',
+    'P1': '🇵🇹',
+    'B1': '🇧🇪',
+    'T1': '🇹🇷',
+    'G1': '🇬🇷',
+    'SC0': '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+    'ARG': '🇦🇷',
+    'BRA': '🇧🇷',
+    'USA': '🇺🇸',
+    'MEX': '🇲🇽',
+    'JPN': '🇯🇵',
+    'CHN': '🇨🇳',
+    'NOR': '🇳🇴',
+    'SWE': '🇸🇪',
+    'DNK': '🇩🇰',
+    'POL': '🇵🇱',
+    'RUS': '🇷🇺',
+    'SWZ': '🇨🇭',
+    'AUT': '🇦🇹',
+    'CL': '🇪🇺'
 }
 
 export async function getDetailedStats(): Promise<{ leagues: LeagueStats[], total: number, yearSpan: string }> {
@@ -257,21 +326,21 @@ export async function getDetailedStats(): Promise<{ leagues: LeagueStats[], tota
     if (error || !data) return { leagues: [], total: 0, yearSpan: '' }
 
     // Group by league
-    const stats: Record<string, { 
+    const stats: Record<string, {
         count: number
         firstDate: string
-        lastDate: string 
+        lastDate: string
         seasons: Set<string>
     }> = {}
-    
+
     let globalFirst = ''
     let globalLast = ''
 
     data.forEach(m => {
         if (!stats[m.league]) {
-            stats[m.league] = { 
-                count: 0, 
-                firstDate: m.date, 
+            stats[m.league] = {
+                count: 0,
+                firstDate: m.date,
                 lastDate: m.date,
                 seasons: new Set()
             }
@@ -279,7 +348,7 @@ export async function getDetailedStats(): Promise<{ leagues: LeagueStats[], tota
         stats[m.league].count++
         stats[m.league].lastDate = m.date
         if (m.season) stats[m.league].seasons.add(m.season)
-        
+
         if (!globalFirst || m.date < globalFirst) globalFirst = m.date
         if (!globalLast || m.date > globalLast) globalLast = m.date
     })

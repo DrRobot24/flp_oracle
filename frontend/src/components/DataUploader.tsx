@@ -196,35 +196,40 @@ export function DataUploader() {
                         <div className="bg-black/20 border border-white/5 p-4 rounded-xl mb-4">
                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">📊 Database Overview</p>
                             {/* Sync Status Cards */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-                                {[
-                                    { id: 'SA', name: 'Serie A', flag: 'it' },
-                                    { id: 'PL', name: 'Premier League', flag: 'gb' },
-                                    { id: 'LL', name: 'La Liga', flag: 'es' },
-                                    { id: 'BL', name: 'Bundesliga', flag: 'de' },
-                                    { id: 'L1', name: 'Ligue 1', flag: 'fr' }
-                                ].map(lg => {
-                                    const lgStats = dbStats.find(s => s.league === lg.id)
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                                {LEAGUES.map(lg => {
+                                    const lgStats = dbStats.find(s => s.league === lg.code)
+                                    // Helper for country flags (some codes aren't ISO country codes)
+                                    const flagCodeMap: Record<string, string> = {
+                                        'PL': 'gb', 'E1': 'gb', 'SA': 'it', 'I2': 'it', 'LL': 'es',
+                                        'BL': 'de', 'L1': 'fr', 'N1': 'nl', 'P1': 'pt', 'B1': 'be',
+                                        'T1': 'tr', 'G1': 'gr', 'SC0': 'gb-sct'
+                                    }
+                                    const flag = flagCodeMap[lg.code] || lg.code.toLowerCase().slice(0, 2)
+
                                     return (
-                                        <div key={lg.id} className="glass-panel border-white/5 p-3 rounded-lg flex items-center justify-between group hover:bg-white/10 transition-colors">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-6 h-4 overflow-hidden rounded-sm shadow-sm grayscale group-hover:grayscale-0 transition-all border border-white/10">
-                                                    <img
-                                                        src={`https://flagcdn.com/${lg.flag}.svg`}
-                                                        alt={lg.name}
-                                                        className="w-full h-full object-cover"
-                                                    />
+                                        <div key={lg.code} className="glass-panel border-white/5 p-2 rounded-lg flex items-center justify-between group hover:bg-white/10 transition-colors">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-5 h-3 overflow-hidden rounded-sm shadow-sm grayscale group-hover:grayscale-0 transition-all border border-white/10 bg-slate-800">
+                                                    {flag && (
+                                                        <img
+                                                            src={`https://flagcdn.com/${flag}.svg`}
+                                                            alt={lg.name}
+                                                            className="w-full h-full object-cover"
+                                                            onError={(e) => (e.currentTarget.style.display = 'none')}
+                                                        />
+                                                    )}
                                                 </div>
-                                                <div>
-                                                    <div className="text-[10px] font-bold text-white flex items-center gap-1 uppercase tracking-tighter">
-                                                        {lg.id}
+                                                <div className="min-w-0">
+                                                    <div className="text-[10px] font-bold text-white flex items-center gap-1 uppercase tracking-tighter truncate">
+                                                        {lg.code}
                                                     </div>
-                                                    <div className="text-[8px] text-slate-500 uppercase tracking-widest leading-none">
-                                                        {lgStats ? `Latest: ${lgStats.latestDate}` : 'No data'}
+                                                    <div className="text-[8px] text-slate-500 uppercase tracking-widest leading-none truncate">
+                                                        {lgStats ? lgStats.latestDate : 'No data'}
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="text-[10px] font-mono text-slate-400 bg-white/5 px-1.5 py-0.5 rounded">
+                                            <div className="text-[9px] font-mono text-slate-400 bg-white/5 px-1 py-0.5 rounded ml-2">
                                                 {lgStats?.count || 0}
                                             </div>
                                         </div>
@@ -274,7 +279,7 @@ export function DataUploader() {
                         variant="outline"
                         className="w-full border-2 border-accent text-accent hover:bg-accent hover:text-white"
                     >
-                        {syncing ? "🔄 Syncing..." : "🌐 Sync All 5 Leagues (2025-2026)"}
+                        {syncing ? "🔄 Syncing..." : "🌐 Sync World Pack (30+ Leagues)"}
                     </Button>
 
                     <p className="text-xs text-gray-500 mt-2">

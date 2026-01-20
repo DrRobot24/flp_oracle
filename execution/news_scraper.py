@@ -13,6 +13,7 @@ import json
 import time
 import hashlib
 import logging
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -60,32 +61,59 @@ MAX_ARTICLES_PER_SOURCE = 20
 CACHE_DIR = Path(__file__).parent.parent / "data" / "scraped_news"
 CACHE_TTL_MINUTES = 30
 
+# Team Synonyms for better filtering
+TEAM_SYNONYMS = {
+    "inter": ["inter", "internazionale", "inter milan", "nerazzurri", "lautaro", "inzaghi"],
+    "milan": ["milan", "ac milan", "rossoneri", "leao", "fonseca"],
+    "juventus": ["juventus", "juve", "bianconeri", "vlahovic", "motta"],
+    "napoli": ["napoli", "partenopei", "conte", "lukaku"],
+    "roma": ["roma", "giallorossi", "dybala"],
+    "lazio": ["lazio", "biancocelesti", "baroni"],
+    "atalanta": ["atalanta", "nerazzurri", "gasperini"],
+    "arsenal": ["arsenal", "gunners", "arteta", "saka"],
+    "chelsea": ["chelsea", "blues", "palmer", "maresca"],
+    "liverpool": ["liverpool", "reds", "slot", "salah"],
+    "manchester city": ["man city", "manchester city", "citizens", "haaland", "guardiola"],
+    "manchester united": ["man utd", "manchester united", "red devils", "rashford"],
+    "real madrid": ["real madrid", "merengues", "los blancos", "vinicius", "mbappe", "ancelotti"],
+    "barcelona": ["barcelona", "barca", "blaugrana", "yamal", "flick", "lewandowski"]
+}
+
+# Keywords to exclude (non-soccer / other players)
+NON_SOCCER_KEYWORDS = [
+    "tennis", "sinner", "djokovic", "alcaraz", "nba", "basketball", 
+    "cricket", "baseball", "f1", "formula 1", "boxing", "ufc", 
+    "olympics", "golf", "bbl", "perth scorchers", "sixers", "anthony joshua"
+]
+
 USER_AGENT = "FLP-Oracle/1.0 (Football Prediction System; Educational Research)"
 
 # News sources configuration
 NEWS_SOURCES = [
     {
-        "name": "Football Italia",
-        "base_url": "https://www.football-italia.net",
-        "search_url": "https://www.football-italia.net/?s={query}",
-        "article_selector": "article.post",
-        "title_selector": "h2.entry-title a",
-        "date_selector": "time.entry-date",
-        "link_selector": "h2.entry-title a",
-        "reliability": 0.80
+        "name": "Google News (Soccer)",
+        "base_url": "https://news.google.com",
+        "search_rss_url": "https://news.google.com/rss/search?q={query}+football&hl=it&gl=IT&ceid=IT:it",
+        "reliability": 0.95
+    },
+    {
+        "name": "Gazzetta dello Sport",
+        "base_url": "https://www.gazzetta.it",
+        "rss_url": "https://www.gazzetta.it/rss/home.xml", # Home feed is more stable
+        "reliability": 0.90
+    },
+    {
+        "name": "Calciomercato.com",
+        "base_url": "https://www.calciomercato.com",
+        "rss_url": "https://www.calciomercato.com/feed",
+        "reliability": 0.90
     },
     {
         "name": "ESPN FC",
         "base_url": "https://www.espn.com",
         "rss_url": "https://www.espn.com/espn/rss/soccer/news",
-        "reliability": 0.90
-    },
-    {
-        "name": "Sky Sports Football",
-        "base_url": "https://www.skysports.com",
-        "rss_url": "https://www.skysports.com/rss/12040",
-        "reliability": 0.88
-    },
+        "reliability": 0.85
+    }
 ]
 
 @dataclass
@@ -161,32 +189,59 @@ class NewsScraper:
         return max(-1.0, min(1.0, score))
 
     def save_to_db(self, article: NewsArticle, team_filter: str = ""):
-        """Save article to Supabase if it doesn't exist"""
+        """Save article to Supabase if it doesn't exist and matches strict criteria"""
         if not supabase:
             return
 
         try:
-            # Check if exists by URL
-            res = supabase.table('news').select('id').eq('url', article.url).execute()
-            if res.data and len(res.data) > 0:
-                logger.debug(f"Article already exists: {article.title[:30]}...")
+            full_text = f"{article.title} {article.raw_text}".lower()
+
+            # 1. HARD BLOCK for non-soccer keywords
+            if any(word in full_text for word in NON_SOCCER_KEYWORDS):
+                logger.debug(f"Blocked (Non-soccer): {article.title[:30]}")
                 return
 
-            # Analyze Category & Sentiment (Basic Logic)
-            category = self._class_news(article.title + " " + article.raw_text)
-            sentiment = self._determine_sentiment(article.title + " " + article.raw_text, category)
+            # 2. STRICT REGEX MENTION CHECK for the requested team
+            team_name = team_filter if team_filter else "General"
             
-            # Use team_filter as team_name if provided, otherwise generic
-            # In a real scraper, we would extract team names from text via NER
-            team_name = team_filter if team_filter else "General" 
-            
-            # If scraping 'all', we might want to skip general news or try to guess team
-            if not team_name or team_name == "General":
-                # Very basic connection to active conversation context if possible
-                # For now, we skip saving 'General' news to DB to avoid pollution
-                # unless we detected a team name in the text (TODO)
-                pass
+            if team_filter:
+                search_terms = TEAM_SYNONYMS.get(team_filter.lower(), [team_filter.lower()])
+                
+                # Special handling for "Inter" to avoid "International"
+                forbidden_prefixes = ["internat", "interv", "interp", "interst", "interfac"]
+                
+                match_found = False
+                for term in search_terms:
+                    # Strict word boundary \b
+                    pattern = rf"\b{re.escape(term.lower())}\b"
+                    matches = list(re.finditer(pattern, full_text))
+                    
+                    for m in matches:
+                        # Check if it's not a false positive like "Inter-national"
+                        start, end = m.span()
+                        # peek 5 chars ahead
+                        following = full_text[end:end+8]
+                        if term.lower() == "inter" and any(fp in following for fp in ["national", "view", "nal"]):
+                            continue
+                        
+                        match_found = True
+                        break
+                    
+                    if match_found: break
+                
+                if not match_found:
+                    logger.debug(f"Skipped (No strict mention of {team_filter}): {article.title[:30]}")
+                    return
 
+            # 3. Check if exists by URL
+            res = supabase.table('news').select('id').eq('url', article.url).execute()
+            if res.data and len(res.data) > 0:
+                return
+
+            # 4. Analyze Category & Sentiment
+            category = self._class_news(full_text)
+            sentiment = self._determine_sentiment(full_text, category)
+            
             row = {
                 "team_name": team_name,
                 "title": article.title,
@@ -328,6 +383,16 @@ class NewsScraper:
             # Fetch fresh data
             if source.get("rss_url"):
                 articles = self.fetch_rss(source)
+            elif source.get("search_rss_url"):
+                # Dynamically build Google News search feed
+                # Use a more specific query for certain teams
+                query = team_filter if team_filter else "football"
+                if query.lower() == "inter": query = "Inter Milan"
+                if query.lower() == "milan": query = "AC Milan"
+                
+                source_copy = source.copy()
+                source_copy["rss_url"] = source["search_rss_url"].format(query=query.replace(" ", "+"))
+                articles = self.fetch_rss(source_copy)
             else:
                 articles = self.fetch_html(source, team_filter)
             

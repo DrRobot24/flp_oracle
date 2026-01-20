@@ -28,3 +28,8 @@ dist-ssr
 .env.development
 .env.test
 .env.production
+
+# Data and Documents
+*.csv
+*.pdf
+tmp_*
