@@ -1,9 +1,9 @@
-# Direttiva Generale: Architettura FLP
+# Direttiva Generale: Architettura MAGOTTO
 
-Questo documento definisce i principi fondamentali e l'architettura del progetto Football League Predictor (FLP).
+Questo documento definisce i principi fondamentali e l'architettura del progetto MAGOTTO.
 
 ## Visione
-FLP è uno strumento avanzato per l'analisi e la previsione dei risultati calcistici, progettato per essere potenziato da agenti AI che operano in modo affidabile e deterministico.
+MAGOTTO è uno strumento avanzato per l'analisi e la previsione dei risultati calcistici, progettato per essere potenziato da agenti AI che operano in modo affidabile e deterministico.
 
 ## Architettura a 3 Livelli
 

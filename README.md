@@ -1,6 +1,6 @@
-# FLP • Oracle (Alpha)
+# MAGOTTO
 
-**Football League Prediction** is a next-gen predictive modeling tool that combines **Geometric Analysis** (Phase Space Trajectories) with **Probabilistic Models** (Poisson, Monte Carlo) to forecast match outcomes with mathematical rigour.
+**MAGOTTO** (Mago + 8) is a next-gen predictive modeling tool that combines **Geometric Analysis** (Phase Space Trajectories) with **Probabilistic Models** (Poisson, Monte Carlo) to forecast match outcomes with mathematical rigour.
 
 ![Status](https://img.shields.io/badge/Status-Alpha-blue)
 ![Stack](https://img.shields.io/badge/Stack-React%20%7C%20Supabase%20%7C%20Recharts-black)
@@ -31,8 +31,8 @@ The application moves beyond simple averages by implementing a "Thick Client" ar
 
 1.  Clone the repo:
     ```bash
-    git clone https://github.com/DrRobot24/flp_oracle.git
-    cd flp_oracle
+    git clone https://github.com/DrRobot24/magotto.git
+    cd magotto
     ```
 
 2.  Install dependencies:

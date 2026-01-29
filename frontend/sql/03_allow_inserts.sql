@@ -17,12 +17,12 @@ CREATE POLICY "Admin Write Access"
 ON matches FOR INSERT
 TO authenticated
 WITH CHECK (
-  auth.jwt() ->> 'email' = 'admin@flp.com' -- Simple email check for now, or use custom claims
+  auth.jwt() ->> 'email' = 'admin@magotto.app' -- Simple email check for now, or use custom claims
 );
 
 CREATE POLICY "Admin Update Access"
 ON matches FOR UPDATE
 TO authenticated
 USING (
-  auth.jwt() ->> 'email' = 'admin@flp.com'
+  auth.jwt() ->> 'email' = 'admin@magotto.app'
 );

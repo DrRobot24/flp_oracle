@@ -6,7 +6,7 @@ import { PhasePoint } from '@/math/geometric'
 import { analyzeFormWave, matchesToSignal, WaveAnalysis } from '@/math/fourier'
 import { OracleIntegrator, OraclePrediction } from '@/math/oracle'
 import { supabase } from '@/lib/supabase'
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, LineChart, Line } from 'recharts'
+import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, LineChart, Line, Legend } from 'recharts'
 import { DataUploader } from '@/components/DataUploader'
 import { UserPrediction } from '@/components/UserPrediction'
 import { DatabaseStats } from '@/components/DatabaseStats'
@@ -32,7 +32,8 @@ export function Dashboard() {
 
   // State
   const [results, setResults] = useState<OraclePrediction | null>(null)
-  const [trajectory, setTrajectory] = useState<PhasePoint[]>([])
+  const [homeTrajectory, setHomeTrajectory] = useState<PhasePoint[]>([])
+  const [awayTrajectory, setAwayTrajectory] = useState<PhasePoint[]>([])
   const [simulationCloud, setSimulationCloud] = useState<PhasePoint[]>([])
   const [homeWaveAnalysis, setHomeWaveAnalysis] = useState<WaveAnalysis | null>(null)
   const [awayWaveAnalysis, setAwayWaveAnalysis] = useState<WaveAnalysis | null>(null)
@@ -80,10 +81,12 @@ export function Dashboard() {
         awayXG: Number(naiveAwayXG.toFixed(2))
       }))
 
-      // Prepare Trajectory Data (Real History) using Rolling Average
-      const geoPoints = calculateRollingAverage(homeStats.recentMatches, params.homeTeam, 5)
+      // Prepare Trajectory Data (Real History) using Rolling Average for BOTH teams
+      const homeGeoPoints = calculateRollingAverage(homeStats.recentMatches, params.homeTeam, 5)
+      const awayGeoPoints = calculateRollingAverage(awayStats.recentMatches, params.awayTeam, 5)
 
-      setTrajectory(geoPoints)
+      setHomeTrajectory(homeGeoPoints)
+      setAwayTrajectory(awayGeoPoints)
       setSimulationCloud([])
       setDataLoading(false)
     }
@@ -123,14 +126,15 @@ export function Dashboard() {
 
       setSimulationCloud(prediction.simulationCloud || [])
 
+      // Add prediction point to home trajectory
       const predictionMean: PhasePoint = {
-        time: listTime(trajectory) + 1,
+        time: listTime(homeTrajectory) + 1,
         x: prediction.adjustedHomeXG,
         y: prediction.adjustedAwayXG,
         className: "prediction"
       }
-      const cleanHistory = trajectory.filter(p => p.className !== 'prediction')
-      setTrajectory([...cleanHistory, predictionMean])
+      const cleanHomeHistory = homeTrajectory.filter((p: PhasePoint) => p.className !== 'prediction')
+      setHomeTrajectory([...cleanHomeHistory, predictionMean])
 
       // 4. Save to Database ONLY if it's a new calculation
       // This prevents duplicates if user clicks multiple times without changing params
@@ -168,7 +172,8 @@ export function Dashboard() {
       awayXG: 0
     })
     setResults(null)
-    setTrajectory([])
+    setHomeTrajectory([])
+    setAwayTrajectory([])
     setSimulationCloud([])
     setHomeWaveAnalysis(null)
     setAwayWaveAnalysis(null)
@@ -418,25 +423,55 @@ export function Dashboard() {
                   />
                   <ReferenceLine y={1.5} stroke="#ef4444" strokeDasharray="3 3" opacity={0.5} />
                   <ReferenceLine x={1.5} stroke="#10b981" strokeDasharray="3 3" opacity={0.5} />
+                  <Legend
+                    verticalAlign="top"
+                    height={36}
+                    wrapperStyle={{ color: '#94a3b8', fontSize: '11px', paddingBottom: '8px' }}
+                  />
 
-                  {/* Simulation Cloud */}
-                  {simulationCloud.length > 0 && <Scatter name="Sim" data={simulationCloud} fill="#6366f1" opacity={0.2} shape="circle" />}
-
-                  {/* History */}
-                  {trajectory.length > 0 && (
-                    <Scatter name="History" data={trajectory.filter(p => p.className !== 'prediction')} fill="#10b981" line={{ stroke: '#10b981', strokeWidth: 2 }} shape="circle" />
+                  {/* Simulation Cloud with Gradient Opacity */}
+                  {simulationCloud.length > 0 && (
+                    <Scatter
+                      name="Monte Carlo Simulations"
+                      data={simulationCloud}
+                      fill="#8b5cf6"
+                      opacity={0.35}
+                      shape="circle"
+                    />
                   )}
 
-                  {/* Prediction Star */}
-                  {trajectory.some(p => p.className === 'prediction') && (
+                  {/* Home Team Trajectory (Green) */}
+                  {homeTrajectory.length > 0 && (
                     <Scatter
-                      name="Prediction"
-                      data={trajectory.filter(p => p.className === 'prediction')}
+                      name={params.homeTeam || 'Home'}
+                      data={homeTrajectory.filter((p: PhasePoint) => p.className !== 'prediction')}
+                      fill="#10b981"
+                      line={{ stroke: '#10b981', strokeWidth: 2 }}
+                      shape="circle"
+                    />
+                  )}
+
+                  {/* Away Team Trajectory (Red) */}
+                  {awayTrajectory.length > 0 && (
+                    <Scatter
+                      name={params.awayTeam || 'Away'}
+                      data={awayTrajectory.filter((p: PhasePoint) => p.className !== 'prediction')}
+                      fill="#ef4444"
+                      line={{ stroke: '#ef4444', strokeWidth: 2 }}
+                      shape="diamond"
+                    />
+                  )}
+
+                  {/* Prediction Star (Gold) */}
+                  {homeTrajectory.some((p: PhasePoint) => p.className === 'prediction') && (
+                    <Scatter
+                      name="Oracle Prediction"
+                      data={homeTrajectory.filter((p: PhasePoint) => p.className === 'prediction')}
                       fill="#fbbf24"
                       shape={(props: any) => (
                         <g>
-                          <circle cx={props.cx} cy={props.cy} r={10} fill="#fbbf24" opacity={0.5} className="animate-pulse" />
-                          <polygon points={`${props.cx},${props.cy - 10} ${props.cx + 2},${props.cy - 3} ${props.cx + 10},${props.cy - 3} ${props.cx + 4},${props.cy + 2} ${props.cx + 6},${props.cy + 10} ${props.cx},${props.cy + 5} ${props.cx - 6},${props.cy + 10} ${props.cx - 4},${props.cy + 2} ${props.cx - 10},${props.cy - 3} ${props.cx - 2},${props.cy - 3}`} fill="#fbbf24" />
+                          <circle cx={props.cx} cy={props.cy} r={12} fill="#fbbf24" opacity={0.4} className="animate-pulse" />
+                          <circle cx={props.cx} cy={props.cy} r={6} fill="#fbbf24" />
                         </g>
                       )}
                     />

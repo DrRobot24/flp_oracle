@@ -1,4 +1,4 @@
-# FLP Project Roadmap
+# MAGOTTO Project Roadmap
 
 ## 📅 Current Status: Phase 2.5 (Data Integration)
 - **Version**: Beta 0.1

@@ -1,4 +1,4 @@
-# 🚀 Guida AdSense per FLP Oracle
+# 🚀 Guida AdSense per MAGOTTO
 
 ## Step 1: Pubblica il Sito Online
 
@@ -21,7 +21,7 @@ Google vuole vedere un sito "completo". Aggiungi:
 
 | Pagina | Obbligatoria? | Note |
 |--------|---------------|------|
-| About / Chi Siamo | ✅ Sì | Spiega cos'è FLP Oracle |
+| About / Chi Siamo | ✅ Sì | Spiega cos'è MAGOTTO |
 | Privacy Policy | ✅ Sì | Genera su [privacypolicygenerator.info](https://privacypolicygenerator.info) |
 | Cookie Policy | ✅ Sì | Stessa cosa |
 | Contatti | ✅ Sì | Anche solo un'email |
@@ -33,7 +33,7 @@ Google vuole vedere un sito "completo". Aggiungi:
 
 1. Vai su **[adsense.google.com](https://adsense.google.com)**
 2. Accedi con il tuo account Google
-3. Inserisci l'URL del tuo sito (es. `https://flp-oracle.com`)
+3. Inserisci l'URL del tuo sito (es. `https://magotto.app`)
 4. Google ti darà un codice Publisher ID (`ca-pub-XXXXXXXXXXXXXXXX`)
 
 ---

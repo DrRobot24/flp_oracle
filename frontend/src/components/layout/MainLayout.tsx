@@ -19,11 +19,9 @@ export function MainLayout({ children }: MainLayoutProps) {
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                         <Link to="/" className="flex items-center gap-2 group">
+                            <img src="/magotto-logo.png" alt="MAGOTTO" className="h-10 w-10 rounded-lg" />
                             <div className="text-xl font-black italic tracking-tighter text-white group-hover:text-primary transition-colors">
-                                FLP<span className="text-primary group-hover:text-white">.PRO</span>
-                            </div>
-                            <div className="hidden md:block text-[10px] font-bold px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-400 uppercase tracking-widest">
-                                Oracle Engine
+                                MAGOTTO
                             </div>
                         </Link>
                     </div>
@@ -108,8 +106,9 @@ export function MainLayout({ children }: MainLayoutProps) {
             <footer className="py-12 border-t border-white/5 mt-auto">
                 <div className="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-6">
                     <div className="flex items-center gap-2">
+                        <img src="/magotto-logo.png" alt="MAGOTTO" className="h-8 w-8 rounded opacity-50" />
                         <div className="text-lg font-black italic tracking-tighter text-slate-400">
-                            FLP<span className="text-slate-600">.PRO</span>
+                            MAGOTTO
                         </div>
                     </div>
 
@@ -117,10 +116,10 @@ export function MainLayout({ children }: MainLayoutProps) {
                         <Link to="/about" className="text-xs font-bold text-slate-500 hover:text-primary transition-colors uppercase tracking-widest">About</Link>
                         <Link to="/privacy" className="text-xs font-bold text-slate-500 hover:text-primary transition-colors uppercase tracking-widest">Privacy Policy</Link>
                         <a href="#" className="text-xs font-bold text-slate-500 hover:text-primary transition-colors uppercase tracking-widest">Cookie Policy</a>
-                        <a href="mailto:support@flp-oracle.com" className="text-xs font-bold text-slate-500 hover:text-primary transition-colors uppercase tracking-widest">Contact</a>
+                        <a href="mailto:support@magotto.app" className="text-xs font-bold text-slate-500 hover:text-primary transition-colors uppercase tracking-widest">Contact</a>
                     </nav>
 
-                    <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">&copy; 2026 FLP Oracle Engine. All rights reserved.</p>
+                    <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">&copy; 2026 MAGOTTO. All rights reserved.</p>
                 </div>
             </footer>
         </div>

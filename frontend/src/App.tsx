@@ -12,7 +12,7 @@ import { Privacy } from "@/pages/Privacy"
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
   const { user, isAdmin, loading } = useAuth()
 
-  if (loading) return <div className="flex h-screen items-center justify-center font-bold uppercase">Loading FLP...</div>
+  if (loading) return <div className="flex h-screen items-center justify-center font-bold uppercase">Loading MAGOTTO...</div>
 
   if (!user) return <Navigate to="/login" />
 

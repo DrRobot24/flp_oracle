@@ -8,7 +8,7 @@ export function About() {
             <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
                 <div className="text-center space-y-4">
                     <h1 className="text-4xl md:text-6xl font-black italic tracking-tighter text-white">
-                        ABOUT <span className="text-primary">FLP ORACLE</span>
+                        ABOUT <span className="text-primary">MAGOTTO</span>
                     </h1>
                     <p className="text-slate-400 text-lg max-w-2xl mx-auto">
                         The ultimate statistical engine for football forecasting, combining Poisson distribution with Fourier analysis and Geometric modeling.
@@ -25,7 +25,7 @@ export function About() {
                         </CardHeader>
                         <CardContent>
                             <p className="text-slate-400 text-sm leading-relaxed">
-                                FLP Oracle was born from the need to transform raw football data into actionable insights.
+                                MAGOTTO was born from the need to transform raw football data into actionable insights.
                                 We don't believe in "luck"—we believe in trajectories, momentum, and statistical probability.
                                 Our mission is to provide bettors and enthusiasts with the most advanced analytical tools
                                 available on the market.
@@ -61,14 +61,14 @@ export function About() {
                     <h3 className="text-2xl font-bold text-white">Responsible Analytics</h3>
                     <p className="text-slate-400 text-sm max-w-xl mx-auto">
                         While our engine provides high-accuracy statistical models, football is inherently unpredictable.
-                        FLP Oracle is an educational and analytical tool. We encourage all users to use these
+                        MAGOTTO is an educational and analytical tool. We encourage all users to use these
                         insights responsibly and never as a guarantee of financial gain.
                     </p>
                 </Card>
 
                 <div className="text-center pt-8">
                     <div className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.3em]">
-                        Developed by FLP Tech Lab &copy; 2026
+                        Developed by MAGOTTO Labs &copy; 2026
                     </div>
                 </div>
             </div>

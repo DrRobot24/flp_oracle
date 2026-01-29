@@ -36,7 +36,7 @@ export function Login() {
         <div className="flex min-h-screen items-center justify-center bg-background p-4">
             <Card className="w-full max-w-md">
                 <CardHeader className="text-center">
-                    <h1 className="text-4xl font-black uppercase tracking-tighter">Enter FLP</h1>
+                    <h1 className="text-4xl font-black uppercase tracking-tighter">Enter MAGOTTO</h1>
                     <p className="text-sm font-bold uppercase tracking-widest opacity-50">Members Only Area</p>
                 </CardHeader>
                 <CardContent>

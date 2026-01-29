@@ -89,7 +89,7 @@ export function Privacy() {
                 <div className="p-6 rounded-xl bg-white/5 border border-white/10 text-center">
                     <p className="text-slate-500 text-xs">
                         If you have any questions about this Privacy Policy, please contact us at:
-                        <span className="text-slate-300 ml-1">support@flp-oracle.com</span>
+                        <span className="text-slate-300 ml-1">support@magotto.app</span>
                     </p>
                 </div>
             </div>

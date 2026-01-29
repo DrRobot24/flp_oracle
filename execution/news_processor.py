@@ -1,5 +1,5 @@
 """
-NEWS PROCESSOR - FLP Oracle
+NEWS PROCESSOR - MAGOTTO
 Processes scraped news articles using NLP for entity recognition,
 sentiment analysis, and categorization.
 
@@ -332,7 +332,7 @@ def main():
     """CLI entry point"""
     import argparse
     
-    parser = argparse.ArgumentParser(description="FLP Oracle News Processor")
+    parser = argparse.ArgumentParser(description="MAGOTTO News Processor")
     parser.add_argument("--input", type=str, required=True,
                         help="Path to match JSON file from scraper")
     parser.add_argument("--output", type=str,

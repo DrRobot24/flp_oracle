@@ -1,5 +1,5 @@
 """
-NEWS SCRAPER - FLP Oracle
+NEWS SCRAPER - MAGOTTO
 Scrapes football news from multiple sources and saves to Supabase DB.
 Follows rate limiting and ethical scraping practices.
 
@@ -86,7 +86,7 @@ NON_SOCCER_KEYWORDS = [
     "olympics", "golf", "bbl", "perth scorchers", "sixers", "anthony joshua"
 ]
 
-USER_AGENT = "FLP-Oracle/1.0 (Football Prediction System; Educational Research)"
+USER_AGENT = "MAGOTTO/1.0 (Football Prediction System; Educational Research)"
 
 # News sources configuration
 NEWS_SOURCES = [
@@ -428,7 +428,7 @@ def main():
     """CLI entry point"""
     import argparse
     
-    parser = argparse.ArgumentParser(description="FLP Oracle News Scraper")
+    parser = argparse.ArgumentParser(description="MAGOTTO News Scraper")
     parser.add_argument("--team", type=str, help="Filter by team name")
     parser.add_argument("--match", type=str, nargs=2, metavar=("HOME", "AWAY"),
                         help="Scrape for specific match")
