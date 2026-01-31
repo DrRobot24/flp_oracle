@@ -7,6 +7,9 @@ import { Profile } from "@/pages/Profile"
 import { Leaderboard } from "@/pages/Leaderboard"
 import { About } from "@/pages/About"
 import { Privacy } from "@/pages/Privacy"
+import { Terms } from "@/pages/Terms"
+import { Contact } from "@/pages/Contact"
+import { CookieConsent } from "@/components/CookieConsent"
 
 // Protected Route Component
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
@@ -45,11 +48,14 @@ function App() {
           {/* Public Legal Routes */}
           <Route path="/about" element={<About />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/contact" element={<Contact />} />
 
           {/* Admin routes will go here later */}
           {/* <Route path="/upload" element={<ProtectedRoute adminOnly><UploadPage /></ProtectedRoute>} /> */}
 
         </Routes>
+        <CookieConsent />
       </BrowserRouter>
     </AuthProvider>
   )

@@ -29,11 +29,10 @@ export const api = {
     // Get list of all teams in the database (for dropdown)
     // Get list of all teams in the database (efficiently)
     async getTeams(): Promise<string[]> {
-        // Fetch only the home_team column to reduce data transfer
-        // In a real production app, a dedicated 'teams' table with a DISTINCT query or RPC would be better
+        // Fetch home_team and away_team to ensure we get all unique names
         const { data, error } = await supabase
             .from('matches')
-            .select('home_team')
+            .select('home_team, away_team')
 
         if (error) {
             console.error(error)
@@ -42,7 +41,8 @@ export const api = {
 
         const teams = new Set<string>()
         data.forEach(match => {
-            if (match.home_team) teams.add(match.home_team)
+            if (match.home_team) teams.add(match.home_team.trim())
+            if (match.away_team) teams.add(match.away_team.trim())
         })
 
         return Array.from(teams).sort()
