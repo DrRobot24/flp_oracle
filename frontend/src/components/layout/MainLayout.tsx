@@ -114,9 +114,9 @@ export function MainLayout({ children }: MainLayoutProps) {
 
                     <nav className="flex gap-8">
                         <Link to="/about" className="text-xs font-bold text-slate-500 hover:text-primary transition-colors uppercase tracking-widest">About</Link>
-                        <Link to="/privacy" className="text-xs font-bold text-slate-500 hover:text-primary transition-colors uppercase tracking-widest">Privacy Policy</Link>
-                        <a href="#" className="text-xs font-bold text-slate-500 hover:text-primary transition-colors uppercase tracking-widest">Cookie Policy</a>
-                        <a href="mailto:support@magotto.app" className="text-xs font-bold text-slate-500 hover:text-primary transition-colors uppercase tracking-widest">Contact</a>
+                        <Link to="/privacy" className="text-xs font-bold text-slate-500 hover:text-primary transition-colors uppercase tracking-widest">Privacy</Link>
+                        <Link to="/terms" className="text-xs font-bold text-slate-500 hover:text-primary transition-colors uppercase tracking-widest">Terms</Link>
+                        <Link to="/contact" className="text-xs font-bold text-slate-500 hover:text-primary transition-colors uppercase tracking-widest">Contact</Link>
                     </nav>
 
                     <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">&copy; 2026 MAGOTTO. All rights reserved.</p>
