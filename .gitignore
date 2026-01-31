@@ -29,7 +29,13 @@ dist-ssr
 .env.test
 .env.production
 
+# Python Virtual Environments
+.venv/
+.venv_old/
+venv/
+
 # Data and Documents
+
 *.csv
 *.pdf
 tmp_*
