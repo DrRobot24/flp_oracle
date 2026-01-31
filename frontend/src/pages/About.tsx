@@ -1,6 +1,7 @@
 import { MainLayout } from "@/components/layout/MainLayout"
 import { Card, CardHeader, CardContent } from "@/components/ui/card"
 import { ShieldCheck, Target, TrendingUp } from 'lucide-react'
+import { DataSourceInfo } from "@/components/DataSourceInfo"
 
 export function About() {
     return (
@@ -65,6 +66,9 @@ export function About() {
                         insights responsibly and never as a guarantee of financial gain.
                     </p>
                 </Card>
+
+                {/* Data Source Statistics */}
+                <DataSourceInfo />
 
                 <div className="text-center pt-8">
                     <div className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.3em]">

@@ -1,0 +1,153 @@
+# CONFIGURAZIONE SQUADRE 2025-2026
+# Questo file definisce le squadre attese per ogni campionato nella stagione corrente.
+# Utilizzato per la validazione e sincronizzazione dei dati.
+
+SERIE_A_2025_2026:
+  code: SA
+  teams:
+    - Inter
+    - Milan
+    - Juventus
+    - Napoli
+    - Roma
+    - Lazio
+    - Atalanta
+    - Bologna
+    - Fiorentina
+    - Torino
+    - Verona
+    - Udinese
+    - Empoli
+    - Genoa
+    - Cagliari
+    - Parma
+    - Lecce
+    - Como
+    - Venezia
+    - Monza
+
+PREMIER_LEAGUE_2025_2026:
+  code: PL
+  teams:
+    - Arsenal
+    - Aston Villa
+    - Bournemouth
+    - Brentford
+    - Brighton
+    - Chelsea
+    - Crystal Palace
+    - Everton
+    - Fulham
+    - Ipswich
+    - Leicester
+    - Liverpool
+    - Man City
+    - Man United
+    - Newcastle
+    - Nott'm Forest
+    - Southampton
+    - Tottenham
+    - West Ham
+    - Wolves
+
+BUNDESLIGA_2025_2026:
+  code: BL
+  teams:
+    - Bayern Munich
+    - Dortmund
+    - Leverkusen
+    - RB Leipzig
+    - Ein Frankfurt
+    - Freiburg
+    - Stuttgart
+    - Hoffenheim
+    - M'gladbach
+    - Wolfsburg
+    - Mainz
+    - Union Berlin
+    - Werder Bremen
+    - Augsburg
+    - Bochum
+    - Heidenheim
+    - St Pauli
+    - Holstein Kiel
+
+LA_LIGA_2025_2026:
+  code: LL
+  teams:
+    - Real Madrid
+    - Barcelona
+    - Ath Madrid
+    - Ath Bilbao
+    - Sevilla
+    - Betis
+    - Sociedad
+    - Villarreal
+    - Valencia
+    - Celta
+    - Mallorca
+    - Girona
+    - Osasuna
+    - Alaves
+    - Getafe
+    - Las Palmas
+    - Espanol
+    - Leganes
+    - Valladolid
+    - Vallecano
+
+LIGUE_1_2025_2026:
+  code: L1
+  teams:
+    - Paris SG
+    - Monaco
+    - Lyon
+    - Marseille
+    - Lille
+    - Nice
+    - Lens
+    - Rennes
+    - Strasbourg
+    - Reims
+    - Nantes
+    - Montpellier
+    - Toulouse
+    - Brest
+    - Le Havre
+    - Auxerre
+    - Angers
+    - St Etienne
+
+# Mapping per normalizzazione nomi (fonte -> nome canonico)
+NORMALIZATION:
+  # Italia
+  Internazionale: Inter
+  AC Milan: Milan
+  AS Roma: Roma
+  Hellas Verona: Verona
+  Atalanta BC: Atalanta
+  
+  # Inghilterra
+  Manchester City: Man City
+  Manchester United: Man United
+  Nottingham Forest: Nott'm Forest
+  Newcastle United: Newcastle
+  
+  # Germania
+  Bayern München: Bayern Munich
+  Borussia Dortmund: Dortmund
+  Bayer Leverkusen: Leverkusen
+  Eintracht Frankfurt: Ein Frankfurt
+  Borussia M'gladbach: M'gladbach
+  
+  # Spagna
+  Athletic Bilbao: Ath Bilbao
+  Atletico Madrid: Ath Madrid
+  Real Sociedad: Sociedad
+  Real Betis: Betis
+  Celta Vigo: Celta
+  Rayo Vallecano: Vallecano
+  
+  # Francia
+  Paris Saint-Germain: Paris SG
+  Saint-Etienne: St Etienne

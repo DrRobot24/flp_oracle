@@ -12,7 +12,8 @@ import { UserPrediction } from '@/components/UserPrediction'
 import { DatabaseStats } from '@/components/DatabaseStats'
 import { AIInsights } from '@/components/AIInsights'
 import { HeadToHead } from '@/components/HeadToHead'
-import { api, HeadToHead as H2HType } from '@/lib/api'
+import { DataSourceInfo } from '@/components/DataSourceInfo'
+import { api, HeadToHead as H2HType, AVAILABLE_LEAGUES, LeagueCode } from '@/lib/api'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { AdSpace } from '@/components/ads/AdSpace'
 import { NewsImpactItem } from '@/math/newsImpact'
@@ -23,6 +24,8 @@ import { useAuth } from '@/contexts/AuthContext'
 export function Dashboard() {
   const { isAdmin } = useAuth()
   const [teams, setTeams] = useState<string[]>([])
+  const [selectedLeagues, setSelectedLeagues] = useState<LeagueCode[]>(['SA', 'PL', 'BL'])
+  const [leaguesLoading, setLeaguesLoading] = useState(false)
   const [params, setParams] = useState({
     homeTeam: '',
     awayTeam: '',
@@ -47,10 +50,40 @@ export function Dashboard() {
   const [homeNews, setHomeNews] = useState<NewsImpactItem[]>([])
   const [awayNews, setAwayNews] = useState<NewsImpactItem[]>([])
 
-  // Load Teams on Mount
+  // Load Teams on Mount and when leagues change
   useEffect(() => {
-    api.getTeams().then(setTeams)
-  }, [])
+    setLeaguesLoading(true)
+    api.getTeamsByLeagues(selectedLeagues).then(t => {
+      setTeams(t)
+      setLeaguesLoading(false)
+      // Reset team selection if current teams not in new league
+      if (params.homeTeam && !t.includes(params.homeTeam)) {
+        setParams(p => ({ ...p, homeTeam: '' }))
+      }
+      if (params.awayTeam && !t.includes(params.awayTeam)) {
+        setParams(p => ({ ...p, awayTeam: '' }))
+      }
+    })
+  }, [selectedLeagues])
+
+  // Toggle league selection (max 3)
+  const toggleLeague = (league: LeagueCode) => {
+    setSelectedLeagues(prev => {
+      if (prev.includes(league)) {
+        // Remove - but must keep at least 1
+        if (prev.length > 1) {
+          return prev.filter(l => l !== league)
+        }
+        return prev
+      } else {
+        // Add - max 3
+        if (prev.length < 3) {
+          return [...prev, league]
+        }
+        return prev
+      }
+    })
+  }
 
   // Auto-calculate expected stats when teams change
   useEffect(() => {
@@ -204,6 +237,37 @@ export function Dashboard() {
               </h3>
             </CardHeader>
             <CardContent className="space-y-4 pt-4">
+              {/* LEAGUE SELECTOR */}
+              <div>
+                <label className="block mb-2 font-bold uppercase text-[10px] tracking-widest text-slate-400">
+                  Campionati (max 3)
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {(Object.entries(AVAILABLE_LEAGUES) as [LeagueCode, typeof AVAILABLE_LEAGUES[LeagueCode]][]).map(([code, league]) => (
+                    <button
+                      key={code}
+                      onClick={() => toggleLeague(code)}
+                      disabled={!selectedLeagues.includes(code) && selectedLeagues.length >= 3}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                        selectedLeagues.includes(code)
+                          ? 'bg-primary/80 text-white shadow-neon'
+                          : selectedLeagues.length >= 3
+                            ? 'bg-slate-800/30 text-slate-600 cursor-not-allowed'
+                            : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
+                      }`}
+                    >
+                      {league.country} {league.name}
+                    </button>
+                  ))}
+                </div>
+                {leaguesLoading && (
+                  <p className="text-[10px] text-primary/60 mt-2 animate-pulse">Caricamento squadre...</p>
+                )}
+                {!leaguesLoading && teams.length > 0 && (
+                  <p className="text-[10px] text-slate-500 mt-2">{teams.length} squadre disponibili</p>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block mb-2 font-bold uppercase text-[10px] tracking-widest text-slate-400">Home Team</label>
@@ -211,6 +275,7 @@ export function Dashboard() {
                     className="w-full glass-input rounded-md px-3 py-2 text-sm"
                     value={params.homeTeam}
                     onChange={e => setParams({ ...params, homeTeam: e.target.value })}
+                    disabled={leaguesLoading}
                   >
                     <option value="" className="text-black">Select Team...</option>
                     {teams.map(t => <option key={t} value={t} className="text-black">{t}</option>)}
@@ -223,6 +288,7 @@ export function Dashboard() {
                     className="w-full glass-input rounded-md px-3 py-2 text-sm"
                     value={params.awayTeam}
                     onChange={e => setParams({ ...params, awayTeam: e.target.value })}
+                    disabled={leaguesLoading}
                   >
                     <option value="" className="text-black">Select Team...</option>
                     {teams.map(t => <option key={t} value={t} className="text-black">{t}</option>)}
@@ -491,7 +557,9 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="mt-8">
+      {/* Data Source Info - Compact version */}
+      <div className="mt-8 space-y-6">
+        <DataSourceInfo compact />
         <DatabaseStats />
       </div>
     </MainLayout>

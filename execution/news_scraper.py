@@ -62,21 +62,73 @@ CACHE_DIR = Path(__file__).parent.parent / "data" / "scraped_news"
 CACHE_TTL_MINUTES = 30
 
 # Team Synonyms for better filtering
+# Comprehensive list for all major leagues
 TEAM_SYNONYMS = {
+    # ========== SERIE A ==========
     "inter": ["inter", "internazionale", "inter milan", "nerazzurri", "lautaro", "inzaghi"],
     "milan": ["milan", "ac milan", "rossoneri", "leao", "fonseca"],
     "juventus": ["juventus", "juve", "bianconeri", "vlahovic", "motta"],
     "napoli": ["napoli", "partenopei", "conte", "lukaku"],
-    "roma": ["roma", "giallorossi", "dybala"],
+    "roma": ["roma", "giallorossi", "dybala", "ranieri"],
     "lazio": ["lazio", "biancocelesti", "baroni"],
-    "atalanta": ["atalanta", "nerazzurri", "gasperini"],
+    "atalanta": ["atalanta", "dea", "gasperini", "lookman"],
+    "fiorentina": ["fiorentina", "viola", "kean"],
+    "bologna": ["bologna", "rossoblù", "italiano"],
+    "torino": ["torino", "toro", "granata", "vanoli"],
+    "udinese": ["udinese", "friulani"],
+    "genoa": ["genoa", "grifone"],
+    "cagliari": ["cagliari", "rossoblù"],
+    "parma": ["parma", "ducali", "crociati"],
+    "empoli": ["empoli", "azzurri"],
+    "lecce": ["lecce", "salentini"],
+    "como": ["como", "lariani"],
+    "monza": ["monza", "brianzoli"],
+    "venezia": ["venezia", "lagunari"],
+    "verona": ["verona", "hellas", "scaligeri"],
+    
+    # ========== PREMIER LEAGUE ==========
     "arsenal": ["arsenal", "gunners", "arteta", "saka"],
     "chelsea": ["chelsea", "blues", "palmer", "maresca"],
     "liverpool": ["liverpool", "reds", "slot", "salah"],
-    "manchester city": ["man city", "manchester city", "citizens", "haaland", "guardiola"],
-    "manchester united": ["man utd", "manchester united", "red devils", "rashford"],
+    "man city": ["man city", "manchester city", "citizens", "haaland", "guardiola"],
+    "man united": ["man utd", "manchester united", "red devils", "rashford", "amorim"],
+    "tottenham": ["tottenham", "spurs", "postecoglou", "son"],
+    "aston villa": ["aston villa", "villa", "emery"],
+    "newcastle": ["newcastle", "magpies", "howe", "isak"],
+    "brighton": ["brighton", "seagulls", "hurzeler"],
+    "west ham": ["west ham", "hammers", "lopetegui"],
+    "bournemouth": ["bournemouth", "cherries", "iraola"],
+    "fulham": ["fulham", "cottagers", "silva"],
+    "crystal palace": ["crystal palace", "palace", "eagles", "glasner"],
+    "brentford": ["brentford", "bees", "frank"],
+    "everton": ["everton", "toffees", "dyche"],
+    "wolves": ["wolves", "wolverhampton", "pereira"],
+    "nottingham forest": ["nott'm forest", "nottingham forest", "forest", "nuno"],
+    "leicester": ["leicester", "foxes", "cooper"],
+    "ipswich": ["ipswich", "tractor boys", "mckenna"],
+    "southampton": ["southampton", "saints", "martin"],
+    
+    # ========== LA LIGA ==========
     "real madrid": ["real madrid", "merengues", "los blancos", "vinicius", "mbappe", "ancelotti"],
-    "barcelona": ["barcelona", "barca", "blaugrana", "yamal", "flick", "lewandowski"]
+    "barcelona": ["barcelona", "barca", "blaugrana", "yamal", "flick", "lewandowski"],
+    "ath madrid": ["atletico", "atlético", "ath madrid", "colchoneros", "simeone"],
+    "ath bilbao": ["athletic", "ath bilbao", "bilbao", "valverde"],
+    "sevilla": ["sevilla", "nervionenses"],
+    "villarreal": ["villarreal", "submarino amarillo"],
+    "betis": ["betis", "real betis", "verdiblancos"],
+    "sociedad": ["sociedad", "real sociedad", "txuri-urdin"],
+    
+    # ========== BUNDESLIGA ==========
+    "bayern munich": ["bayern", "bayern munich", "münchen", "kompany"],
+    "dortmund": ["dortmund", "borussia dortmund", "bvb", "sahin"],
+    "leverkusen": ["leverkusen", "bayer", "werkself", "alonso"],
+    "rb leipzig": ["leipzig", "rb leipzig", "rose"],
+    
+    # ========== LIGUE 1 ==========
+    "paris sg": ["psg", "paris", "paris sg", "paris saint-germain", "luis enrique"],
+    "marseille": ["marseille", "om", "olympique marseille", "de zerbi"],
+    "monaco": ["monaco", "as monaco", "hütter"],
+    "lyon": ["lyon", "ol", "olympique lyon"],
 }
 
 # Keywords to exclude (non-soccer / other players)

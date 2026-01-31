@@ -25,27 +25,55 @@ export interface HeadToHead {
     lastMatches: { date: string; homeGoals: number; awayGoals: number }[]
 }
 
+// Available leagues configuration - codes must match database
+export const AVAILABLE_LEAGUES = {
+    'SA': { name: 'Serie A', country: '🇮🇹', flag: 'IT' },
+    'I2': { name: 'Serie B', country: '🇮🇹', flag: 'IT' },
+    'PL': { name: 'Premier League', country: '🇬🇧', flag: 'GB' },
+    'E1': { name: 'Championship', country: '🇬🇧', flag: 'GB' },
+    'BL': { name: 'Bundesliga', country: '🇩🇪', flag: 'DE' },
+    'LL': { name: 'La Liga', country: '🇪🇸', flag: 'ES' },
+    'N1': { name: 'Eredivisie', country: '🇳🇱', flag: 'NL' },
+    'POL': { name: 'Ekstraklasa', country: '🇵🇱', flag: 'PL' },
+    'CL': { name: 'Champions League', country: '🇪🇺', flag: 'EU' },
+} as const
+
+export type LeagueCode = keyof typeof AVAILABLE_LEAGUES
+
 export const api = {
-    // Get list of all teams in the database (for dropdown)
-    // Get list of all teams in the database (efficiently)
-    async getTeams(): Promise<string[]> {
-        // Fetch home_team and away_team to ensure we get all unique names
-        const { data, error } = await supabase
-            .from('matches')
-            .select('home_team, away_team')
-
-        if (error) {
-            console.error(error)
-            return []
-        }
-
+    // Get teams filtered by selected leagues (much faster!)
+    async getTeamsByLeagues(leagues: LeagueCode[]): Promise<string[]> {
+        if (leagues.length === 0) return []
+        
         const teams = new Set<string>()
-        data.forEach(match => {
-            if (match.home_team) teams.add(match.home_team.trim())
-            if (match.away_team) teams.add(match.away_team.trim())
-        })
-
+        
+        // Query only recent season for each league - much faster
+        for (const league of leagues) {
+            const { data, error } = await supabase
+                .from('matches')
+                .select('home_team, away_team')
+                .eq('league', league)
+                .order('date', { ascending: false })
+                .limit(500) // Last 500 matches per league = enough for all teams
+            
+            if (error) {
+                console.error(`Error fetching teams for ${league}:`, error)
+                continue
+            }
+            
+            data?.forEach(match => {
+                if (match.home_team) teams.add(match.home_team.trim())
+                if (match.away_team) teams.add(match.away_team.trim())
+            })
+        }
+        
         return Array.from(teams).sort()
+    },
+
+    // Legacy method - kept for compatibility but not recommended
+    async getTeams(): Promise<string[]> {
+        // Default to major leagues only
+        return this.getTeamsByLeagues(['SA', 'PL', 'BL'])
     },
 
     // Get head-to-head stats between two teams
