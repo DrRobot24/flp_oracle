@@ -19,14 +19,63 @@ Contiene script Python deterministici che eseguono il lavoro pesante in modo aff
 - Esempio: `execution/fetch_football_data.py`
 
 ## Struttura del Progetto
-- `/frontend`: Applicazione React/Vite/Tailwind (la UI dell'utente).
-- `/backend`: API server (se necessario).
-- `/directives`: Istruzioni per gli agenti.
-- `/execution`: Tool e script di supporto.
-- `/.tmp`: Storage temporaneo per l'elaborazione dati.
+```
+MAG8/
+├── .env                 # Variabili ambiente (mai committare)
+├── README.md            # Documentazione principale
+├── requirements.txt     # Dipendenze Python
+├── config/              # Configurazioni YAML (squadre, settings)
+├── data/                # CSV e dati scraping
+│   └── scraped_news/    # News scrappate
+├── directives/          # SOP per agenti AI
+├── docs/                # Documentazione estesa
+├── execution/           # Script Python deterministici
+└── frontend/            # App React/Vite/Tailwind
+    ├── src/
+    │   ├── components/  # Componenti React
+    │   ├── hooks/       # Custom hooks
+    │   ├── lib/         # Utilities e API
+    │   ├── math/        # Algoritmi (Fourier, Poisson, Oracle)
+    │   └── pages/       # Pagine principali
+    └── public/          # Asset statici
+```
 
 ## Principi per l'Agente
 1. **Verifica sempre le direttive** prima di agire.
 2. **Usa gli script in `execution/`** invece di scrivere codice ad-hoc ogni volta.
 3. **Aggiorna le direttive** quando impari nuovi limiti o ottimizzazioni.
 4. **Mantieni separata la logica AI dalla logica di business deterministica.**
+
+## Stack Tecnologico
+
+### Frontend
+- **Framework**: React 18 + Vite
+- **Styling**: Tailwind CSS + shadcn/ui components
+- **State**: React hooks + Context API
+- **Charts**: Recharts
+- **Database Client**: @supabase/supabase-js
+
+### Backend/Database  
+- **Database**: Supabase (PostgreSQL)
+- **Auth**: Supabase Auth
+- **Storage**: Supabase Storage (se necessario)
+
+### Python (Execution)
+- **Runtime**: Python 3.x
+- **DB Client**: supabase-py
+- **HTTP**: requests
+- **Config**: python-dotenv, PyYAML
+
+## Best Practices Codice
+
+### TypeScript/React
+- Usare `import type` per tipi (Vite lo richiede)
+- Estrarre hook custom per logica complessa
+- Componenti in file separati quando superano 200 righe
+- Costanti centralizzate in `lib/constants.ts`
+
+### Supabase
+- RLS policies per sicurezza
+- `{ count: 'exact', head: true }` per conteggi veloci
+- Paginazione per dataset grandi (limite 1000 righe/query)
+- Service role key solo in script Python, mai nel frontend
