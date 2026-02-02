@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import type { LeagueCode } from './constants'
 
 export interface TeamStats {
     teamName: string
@@ -9,7 +10,14 @@ export interface TeamStats {
     avgHomeGoalsAgainst: number
     avgAwayGoalsFor: number
     avgAwayGoalsAgainst: number
-    recentMatches: any[]
+    recentMatches: Array<{
+        home_team: string
+        away_team: string
+        home_goals: number
+        away_goals: number
+        date: string
+        league: string
+    }>
 }
 
 // Re-using the interface from our math engine for consistency
@@ -25,20 +33,9 @@ export interface HeadToHead {
     lastMatches: { date: string; homeGoals: number; awayGoals: number }[]
 }
 
-// Available leagues configuration - codes must match database
-export const AVAILABLE_LEAGUES = {
-    'SA': { name: 'Serie A', country: '🇮🇹', flag: 'IT' },
-    'I2': { name: 'Serie B', country: '🇮🇹', flag: 'IT' },
-    'PL': { name: 'Premier League', country: '🇬🇧', flag: 'GB' },
-    'E1': { name: 'Championship', country: '🇬🇧', flag: 'GB' },
-    'BL': { name: 'Bundesliga', country: '🇩🇪', flag: 'DE' },
-    'LL': { name: 'La Liga', country: '🇪🇸', flag: 'ES' },
-    'N1': { name: 'Eredivisie', country: '🇳🇱', flag: 'NL' },
-    'POL': { name: 'Ekstraklasa', country: '🇵🇱', flag: 'PL' },
-    'CL': { name: 'Champions League', country: '🇪🇺', flag: 'EU' },
-} as const
-
-export type LeagueCode = keyof typeof AVAILABLE_LEAGUES
+// Re-export from constants for backward compatibility
+export { LEAGUES as AVAILABLE_LEAGUES } from './constants'
+export type { LeagueCode } from './constants'
 
 export const api = {
     // Get teams filtered by selected leagues (much faster!)

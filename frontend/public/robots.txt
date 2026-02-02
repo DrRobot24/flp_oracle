@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /login
+Disallow: /profile
 
-Sitemap: https://flp-oracle.vercel.app/sitemap.xml
+Sitemap: https://magotto.vercel.app/sitemap.xml

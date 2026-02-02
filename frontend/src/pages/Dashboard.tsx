@@ -1,637 +1,482 @@
-import { useState, useEffect } from 'react'
+/**
+ * Dashboard - Main prediction interface
+ * Refactored to use custom hook for state management
+ */
+
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PhasePoint } from '@/math/geometric'
-import { analyzeFormWave, matchesToSignal, WaveAnalysis } from '@/math/fourier'
-import { OracleIntegrator, OraclePrediction } from '@/math/oracle'
-import { supabase } from '@/lib/supabase'
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, LineChart, Line, Legend } from 'recharts'
+import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts'
 import { DataUploader } from '@/components/DataUploader'
 import { UserPrediction } from '@/components/UserPrediction'
-import { DatabaseStats } from '@/components/DatabaseStats'
 import { AIInsights } from '@/components/AIInsights'
 import { HeadToHead } from '@/components/HeadToHead'
 import { DataSourceInfo } from '@/components/DataSourceInfo'
-import { api, HeadToHead as H2HType, AVAILABLE_LEAGUES, LeagueCode } from '@/lib/api'
+import { WaveChart } from '@/components/charts/WaveChart'
+import { LEAGUES } from '@/lib/constants'
+import type { LeagueCode } from '@/lib/constants'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { AdSpace } from '@/components/ads/AdSpace'
-import { NewsImpactItem } from '@/math/newsImpact'
 import { Activity, Zap, BarChart3 } from 'lucide-react'
-
 import { useAuth } from '@/contexts/AuthContext'
+import { useDashboardState } from '@/hooks/useDashboardState'
 
 export function Dashboard() {
-  const { isAdmin } = useAuth()
-  const [teams, setTeams] = useState<string[]>([])
-  const [selectedLeagues, setSelectedLeagues] = useState<LeagueCode[]>(['SA', 'PL', 'BL'])
-  const [leaguesLoading, setLeaguesLoading] = useState(false)
-  const [params, setParams] = useState({
-    homeTeam: '',
-    awayTeam: '',
-    homeXG: 0,
-    awayXG: 0
-  })
-
-  // State
-  const [results, setResults] = useState<OraclePrediction | null>(null)
-  const [homeTrajectory, setHomeTrajectory] = useState<PhasePoint[]>([])
-  const [awayTrajectory, setAwayTrajectory] = useState<PhasePoint[]>([])
-  const [simulationCloud, setSimulationCloud] = useState<PhasePoint[]>([])
-  const [homeWaveAnalysis, setHomeWaveAnalysis] = useState<WaveAnalysis | null>(null)
-  const [awayWaveAnalysis, setAwayWaveAnalysis] = useState<WaveAnalysis | null>(null)
-  const [headToHead, setHeadToHead] = useState<H2HType | null>(null)
-  const [h2hLoading, setH2hLoading] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [dataLoading, setDataLoading] = useState(false)
-  const [lastCalculatedParams, setLastCalculatedParams] = useState<string>('')
-
-  // News State
-  const [homeNews, setHomeNews] = useState<NewsImpactItem[]>([])
-  const [awayNews, setAwayNews] = useState<NewsImpactItem[]>([])
-
-  // Load Teams on Mount and when leagues change
-  useEffect(() => {
-    setLeaguesLoading(true)
-    api.getTeamsByLeagues(selectedLeagues).then(t => {
-      setTeams(t)
-      setLeaguesLoading(false)
-      // Reset team selection if current teams not in new league
-      if (params.homeTeam && !t.includes(params.homeTeam)) {
-        setParams(p => ({ ...p, homeTeam: '' }))
-      }
-      if (params.awayTeam && !t.includes(params.awayTeam)) {
-        setParams(p => ({ ...p, awayTeam: '' }))
-      }
-    })
-  }, [selectedLeagues])
-
-  // Toggle league selection (max 3)
-  const toggleLeague = (league: LeagueCode) => {
-    setSelectedLeagues(prev => {
-      if (prev.includes(league)) {
-        // Remove - but must keep at least 1
-        if (prev.length > 1) {
-          return prev.filter(l => l !== league)
-        }
-        return prev
-      } else {
-        // Add - max 3
-        if (prev.length < 3) {
-          return [...prev, league]
-        }
-        return prev
-      }
-    })
-  }
-
-  // Auto-calculate expected stats when teams change
-  useEffect(() => {
-    async function updateStats() {
-      if (!params.homeTeam || !params.awayTeam) return
-      setDataLoading(true)
-      setH2hLoading(true)
-
-      const [homeStats, awayStats, h2h, hNews, aNews] = await Promise.all([
-        api.getTeamStats(params.homeTeam),
-        api.getTeamStats(params.awayTeam),
-        api.getHeadToHead(params.homeTeam, params.awayTeam),
-        api.getNews(params.homeTeam),
-        api.getNews(params.awayTeam)
-      ])
-
-      setHeadToHead(h2h)
-      setHomeNews(hNews)
-      setAwayNews(aNews)
-      setH2hLoading(false)
-
-      const naiveHomeXG = (homeStats.avgHomeGoalsFor + awayStats.avgAwayGoalsAgainst) / 2
-      const naiveAwayXG = (awayStats.avgAwayGoalsFor + homeStats.avgHomeGoalsAgainst) / 2
-
-      setParams(p => ({
-        ...p,
-        homeXG: Number(naiveHomeXG.toFixed(2)),
-        awayXG: Number(naiveAwayXG.toFixed(2))
-      }))
-
-      // Prepare Trajectory Data (Real History) using Rolling Average for BOTH teams
-      const homeGeoPoints = calculateRollingAverage(homeStats.recentMatches, params.homeTeam, 5)
-      const awayGeoPoints = calculateRollingAverage(awayStats.recentMatches, params.awayTeam, 5)
-
-      setHomeTrajectory(homeGeoPoints)
-      setAwayTrajectory(awayGeoPoints)
-      setSimulationCloud([])
-      setDataLoading(false)
-    }
-    updateStats()
-  }, [params.homeTeam, params.awayTeam])
-
-
-  const handleCalculate = async () => {
-    if (!params.homeTeam || !params.awayTeam) return
-    setLoading(true)
-
-    try {
-      const [homeStats, awayStats] = await Promise.all([
-        api.getTeamStats(params.homeTeam, 20),
-        api.getTeamStats(params.awayTeam, 20)
-      ])
-
-      const oracle = new OracleIntegrator()
-      const prediction = await oracle.predict(
-        params.homeTeam,
-        params.awayTeam,
-        params.homeXG,
-        params.awayXG,
-        homeStats.recentMatches,
-        awayStats.recentMatches,
+    const { isAdmin } = useAuth()
+    const {
+        // State
+        teams,
+        selectedLeagues,
+        leaguesLoading,
+        params,
+        results,
+        homeTrajectory,
+        awayTrajectory,
+        simulationCloud,
+        homeWaveAnalysis,
+        awayWaveAnalysis,
+        headToHead,
+        h2hLoading,
         homeNews,
-        awayNews
-      )
+        awayNews,
+        loading,
+        dataLoading,
+        lastCalculatedParams,
+        // Actions
+        setParams,
+        toggleLeague,
+        handleCalculate,
+        handleReset
+    } = useDashboardState()
 
-      setResults(prediction)
+    return (
+        <MainLayout>
+            {/* Admin / Data Upload Only */}
+            {isAdmin && (
+                <div className="mb-6">
+                    <DataUploader />
+                </div>
+            )}
 
-      const homeSignal = matchesToSignal(homeStats.recentMatches, params.homeTeam)
-      setHomeWaveAnalysis(analyzeFormWave(homeSignal, 3))
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+                {/* INPUT COLUMN */}
+                <div className="xl:col-span-4 space-y-6">
+                    <MatchInputPanel
+                        teams={teams}
+                        selectedLeagues={selectedLeagues}
+                        leaguesLoading={leaguesLoading}
+                        params={params}
+                        loading={loading}
+                        dataLoading={dataLoading}
+                        onParamsChange={setParams}
+                        onLeagueToggle={toggleLeague}
+                        onCalculate={handleCalculate}
+                        onReset={handleReset}
+                    />
 
-      const awaySignal = matchesToSignal(awayStats.recentMatches, params.awayTeam)
-      setAwayWaveAnalysis(analyzeFormWave(awaySignal, 3))
+                    {/* HEAD TO HEAD & USER PREDICTION */}
+                    {params.homeTeam && params.awayTeam && (
+                        <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-500">
+                            <HeadToHead homeTeam={params.homeTeam} awayTeam={params.awayTeam} data={headToHead} loading={h2hLoading} />
+                            <UserPrediction 
+                                homeTeam={params.homeTeam} 
+                                awayTeam={params.awayTeam} 
+                                aiPrediction={results ? { 
+                                    homeWin: results.predictions['1X2'].home_win, 
+                                    draw: results.predictions['1X2'].draw, 
+                                    awayWin: results.predictions['1X2'].away_win 
+                                } : undefined} 
+                            />
+                        </div>
+                    )}
+                </div>
 
-      setSimulationCloud(prediction.simulationCloud || [])
+                {/* VISUALIZATION COLUMN */}
+                <div className="xl:col-span-8 space-y-6">
+                    {/* RESULTS PANEL */}
+                    {results && (
+                        <OracleResultsPanel
+                            results={results}
+                            params={params}
+                            lastCalculatedParams={lastCalculatedParams}
+                        />
+                    )}
 
-      // Add prediction point to home trajectory
-      const predictionMean: PhasePoint = {
-        time: listTime(homeTrajectory) + 1,
-        x: prediction.adjustedHomeXG,
-        y: prediction.adjustedAwayXG,
-        className: "prediction"
-      }
-      const cleanHomeHistory = homeTrajectory.filter((p: PhasePoint) => p.className !== 'prediction')
-      setHomeTrajectory([...cleanHomeHistory, predictionMean])
+                    {/* AI INSIGHTS */}
+                    <AIInsights
+                        homeTeam={params.homeTeam}
+                        awayTeam={params.awayTeam}
+                        results={results}
+                        homeWave={homeWaveAnalysis}
+                        awayWave={awayWaveAnalysis}
+                        homeNews={homeNews}
+                        awayNews={awayNews}
+                    />
 
-      // 4. Save to Database ONLY if it's a new calculation
-      // This prevents duplicates if user clicks multiple times without changing params
-      const currentParamKey = `${params.homeTeam}-${params.awayTeam}-${params.homeXG}-${params.awayXG}`;
-      if (lastCalculatedParams !== currentParamKey) {
-        await supabase.from('predictions').insert({
-          home_team: params.homeTeam,
-          away_team: params.awayTeam,
-          home_xg: params.homeXG,
-          away_xg: params.awayXG,
-          prob_home: prediction.predictions['1X2'].home_win,
-          prob_draw: prediction.predictions['1X2'].draw,
-          prob_away: prediction.predictions['1X2'].away_win,
-          predicted_outcome:
-            prediction.predictions['1X2'].home_win >= Math.max(prediction.predictions['1X2'].draw, prediction.predictions['1X2'].away_win) ? 'HOME_WIN' :
-              (prediction.predictions['1X2'].away_win >= Math.max(prediction.predictions['1X2'].draw, prediction.predictions['1X2'].home_win) ? 'AWAY_WIN' : 'DRAW')
-        })
-        setLastCalculatedParams(currentParamKey)
-      }
+                    <div className="flex justify-center">
+                        <AdSpace type="rectangle" className="w-full" />
+                    </div>
 
-    } catch (err) {
-      console.error('Calculation failed:', err)
-    }
+                    {/* PHASE SPACE CHART */}
+                    <PhaseSpaceChart
+                        homeTeam={params.homeTeam}
+                        awayTeam={params.awayTeam}
+                        homeTrajectory={homeTrajectory}
+                        awayTrajectory={awayTrajectory}
+                        simulationCloud={simulationCloud}
+                    />
 
-    setLoading(false)
-  }
+                    {/* WAVE ANALYSIS */}
+                    {(homeWaveAnalysis || awayWaveAnalysis) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in zoom-in-95 duration-700">
+                            {homeWaveAnalysis && <WaveChart team={params.homeTeam} wave={homeWaveAnalysis} color="#10b981" />}
+                            {awayWaveAnalysis && <WaveChart team={params.awayTeam} wave={awayWaveAnalysis} color="#f43f5e" />}
+                        </div>
+                    )}
+                </div>
+            </div>
 
-  const handleReset = () => {
-    if (results && !window.confirm('Sei sicuro di voler cancellare l\'analisi attuale?')) return
+            {/* Data Source Info */}
+            <div className="mt-8">
+                <DataSourceInfo />
+            </div>
+        </MainLayout>
+    )
+}
 
-    setParams({
-      homeTeam: '',
-      awayTeam: '',
-      homeXG: 0,
-      awayXG: 0
-    })
-    setResults(null)
-    setHomeTrajectory([])
-    setAwayTrajectory([])
-    setSimulationCloud([])
-    setHomeWaveAnalysis(null)
-    setAwayWaveAnalysis(null)
-    setHeadToHead(null)
-    setLastCalculatedParams('')
-  }
+// ============================================
+// SUB-COMPONENTS
+// ============================================
 
-  const listTime = (t: PhasePoint[]) => t.length > 0 ? t[t.length - 1].time : 0
+interface MatchInputPanelProps {
+    teams: string[]
+    selectedLeagues: LeagueCode[]
+    leaguesLoading: boolean
+    params: { homeTeam: string; awayTeam: string; homeXG: number; awayXG: number }
+    loading: boolean
+    dataLoading: boolean
+    onParamsChange: (params: Partial<{ homeTeam: string; awayTeam: string; homeXG: number; awayXG: number }>) => void
+    onLeagueToggle: (league: LeagueCode) => void
+    onCalculate: () => void
+    onReset: () => void
+}
 
-  return (
-    <MainLayout>
-      {/* Admin / Data Upload Only */}
-      {isAdmin && (
-        <div className="mb-6">
-          <DataUploader />
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-
-        {/* INPUT COLUMN */}
-        <div className="xl:col-span-4 space-y-6">
-          <Card className="glass-panel border-0">
+function MatchInputPanel({
+    teams, selectedLeagues, leaguesLoading, params, loading, dataLoading,
+    onParamsChange, onLeagueToggle, onCalculate, onReset
+}: MatchInputPanelProps) {
+    return (
+        <Card className="glass-panel border-0">
             <CardHeader className="border-b border-white/5 pb-3">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Activity className="h-5 w-5 text-primary" />
-                Match Parameters
-              </h3>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-primary" />
+                    Match Parameters
+                </h3>
             </CardHeader>
             <CardContent className="space-y-4 pt-4">
-              {/* LEAGUE SELECTOR */}
-              <div>
-                <label className="block mb-2 font-bold uppercase text-[10px] tracking-widest text-slate-400">
-                  Campionati (max 3)
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {(Object.entries(AVAILABLE_LEAGUES) as [LeagueCode, typeof AVAILABLE_LEAGUES[LeagueCode]][]).map(([code, league]) => (
-                    <button
-                      key={code}
-                      onClick={() => toggleLeague(code)}
-                      disabled={!selectedLeagues.includes(code) && selectedLeagues.length >= 3}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                        selectedLeagues.includes(code)
-                          ? 'bg-primary/80 text-white shadow-neon'
-                          : selectedLeagues.length >= 3
-                            ? 'bg-slate-800/30 text-slate-600 cursor-not-allowed'
-                            : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
-                      }`}
+                {/* LEAGUE SELECTOR */}
+                <div>
+                    <label className="block mb-2 font-bold uppercase text-[10px] tracking-widest text-slate-400">
+                        Campionati (max 3)
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                        {(Object.entries(LEAGUES) as [LeagueCode, typeof LEAGUES[LeagueCode]][])
+                            .filter(([code]) => ['SA', 'I2', 'PL', 'E1', 'BL', 'LL', 'N1', 'POL', 'CL'].includes(code))
+                            .map(([code, league]) => (
+                                <button
+                                    key={code}
+                                    onClick={() => onLeagueToggle(code)}
+                                    disabled={!selectedLeagues.includes(code) && selectedLeagues.length >= 3}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                                        selectedLeagues.includes(code)
+                                            ? 'bg-primary/80 text-white shadow-neon'
+                                            : selectedLeagues.length >= 3
+                                                ? 'bg-slate-800/30 text-slate-600 cursor-not-allowed'
+                                                : 'bg-slate-800/50 text-slate-300 hover:bg-slate-700/50'
+                                    }`}
+                                >
+                                    {league.country} {league.name}
+                                </button>
+                            ))}
+                    </div>
+                    {leaguesLoading && (
+                        <p className="text-[10px] text-primary/60 mt-2 animate-pulse">Caricamento squadre...</p>
+                    )}
+                    {!leaguesLoading && teams.length > 0 && (
+                        <p className="text-[10px] text-slate-500 mt-2">{teams.length} squadre disponibili</p>
+                    )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block mb-2 font-bold uppercase text-[10px] tracking-widest text-slate-400">Home Team</label>
+                        <select
+                            className="w-full glass-input rounded-md px-3 py-2 text-sm"
+                            value={params.homeTeam}
+                            onChange={e => onParamsChange({ homeTeam: e.target.value })}
+                            disabled={leaguesLoading}
+                        >
+                            <option value="" className="text-black">Select Team...</option>
+                            {teams.map(t => <option key={t} value={t} className="text-black">{t}</option>)}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block mb-2 font-bold uppercase text-[10px] tracking-widest text-slate-400">Away Team</label>
+                        <select
+                            className="w-full glass-input rounded-md px-3 py-2 text-sm"
+                            value={params.awayTeam}
+                            onChange={e => onParamsChange({ awayTeam: e.target.value })}
+                            disabled={leaguesLoading}
+                        >
+                            <option value="" className="text-black">Select Team...</option>
+                            {teams.map(t => <option key={t} value={t} className="text-black">{t}</option>)}
+                        </select>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <Input
+                        label="Calc. Home xG"
+                        type="number"
+                        step="0.1"
+                        className="glass-input"
+                        value={params.homeXG}
+                        onChange={e => onParamsChange({ homeXG: Number(e.target.value) })}
+                    />
+                    <Input
+                        label="Calc. Away xG"
+                        type="number"
+                        step="0.1"
+                        className="glass-input"
+                        value={params.awayXG}
+                        onChange={e => onParamsChange({ awayXG: Number(e.target.value) })}
+                    />
+                </div>
+
+                <div className="flex gap-3">
+                    <Button
+                        className="flex-1 h-12 text-sm font-bold bg-gradient-to-r from-primary to-accent hover:opacity-90 shadow-neon border-0"
+                        onClick={onCalculate}
+                        disabled={loading || !params.homeTeam || !params.awayTeam}
                     >
-                      {league.country} {league.name}
-                    </button>
-                  ))}
+                        {loading ? (
+                            <span className="flex items-center gap-2">
+                                <Zap className="h-4 w-4 animate-pulse" /> Simulating...
+                            </span>
+                        ) : dataLoading ? (
+                            "Analysing Data..."
+                        ) : (
+                            <span className="flex items-center gap-2">
+                                <Zap className="h-4 w-4" /> Run Oracle
+                            </span>
+                        )}
+                    </Button>
+
+                    <Button
+                        variant="outline"
+                        className="h-12 px-4 text-[10px] border-white/10 hover:bg-white/5"
+                        onClick={onReset}
+                        title="Nuova Analisi"
+                    >
+                        Reset
+                    </Button>
                 </div>
-                {leaguesLoading && (
-                  <p className="text-[10px] text-primary/60 mt-2 animate-pulse">Caricamento squadre...</p>
-                )}
-                {!leaguesLoading && teams.length > 0 && (
-                  <p className="text-[10px] text-slate-500 mt-2">{teams.length} squadre disponibili</p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block mb-2 font-bold uppercase text-[10px] tracking-widest text-slate-400">Home Team</label>
-                  <select
-                    className="w-full glass-input rounded-md px-3 py-2 text-sm"
-                    value={params.homeTeam}
-                    onChange={e => setParams({ ...params, homeTeam: e.target.value })}
-                    disabled={leaguesLoading}
-                  >
-                    <option value="" className="text-black">Select Team...</option>
-                    {teams.map(t => <option key={t} value={t} className="text-black">{t}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block mb-2 font-bold uppercase text-[10px] tracking-widest text-slate-400">Away Team</label>
-                  <select
-                    className="w-full glass-input rounded-md px-3 py-2 text-sm"
-                    value={params.awayTeam}
-                    onChange={e => setParams({ ...params, awayTeam: e.target.value })}
-                    disabled={leaguesLoading}
-                  >
-                    <option value="" className="text-black">Select Team...</option>
-                    {teams.map(t => <option key={t} value={t} className="text-black">{t}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Calc. Home xG"
-                  type="number"
-                  step="0.1"
-                  className="glass-input"
-                  value={params.homeXG}
-                  onChange={e => setParams({ ...params, homeXG: Number(e.target.value) })}
-                />
-                <Input
-                  label="Calc. Away xG"
-                  type="number"
-                  step="0.1"
-                  className="glass-input"
-                  value={params.awayXG}
-                  onChange={e => setParams({ ...params, awayXG: Number(e.target.value) })}
-                />
-              </div>
-
-              <div className="flex gap-3">
-                <Button
-                  className="flex-1 h-12 text-sm font-bold bg-gradient-to-r from-primary to-accent hover:opacity-90 shadow-neon border-0"
-                  onClick={handleCalculate}
-                  disabled={loading || !params.homeTeam || !params.awayTeam}
-                >
-                  {loading ? (
-                    <span className="flex items-center gap-2">
-                      <Zap className="h-4 w-4 animate-pulse" /> Simulating...
-                    </span>
-                  ) : dataLoading ? (
-                    "Analysing Data..."
-                  ) : (
-                    <span className="flex items-center gap-2">
-                      <Zap className="h-4 w-4" /> Run Oracle
-                    </span>
-                  )}
-                </Button>
-
-                <Button
-                  variant="outline"
-                  className="h-12 px-4 text-[10px] border-white/10 hover:bg-white/5"
-                  onClick={handleReset}
-                  title="Nuova Analisi"
-                >
-                  Reset
-                </Button>
-              </div>
             </CardContent>
-          </Card>
+        </Card>
+    )
+}
 
-          {/* HEAD TO HEAD & USER PREDICTION */}
-          {params.homeTeam && params.awayTeam && (
-            <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-500">
-              <HeadToHead homeTeam={params.homeTeam} awayTeam={params.awayTeam} data={headToHead} loading={h2hLoading} />
-              <UserPrediction homeTeam={params.homeTeam} awayTeam={params.awayTeam} aiPrediction={results ? { homeWin: results.predictions['1X2'].home_win, draw: results.predictions['1X2'].draw, awayWin: results.predictions['1X2'].away_win } : undefined} />
-            </div>
-          )}
-        </div>
+interface OracleResultsPanelProps {
+    results: any
+    params: { homeTeam: string; awayTeam: string; homeXG: number; awayXG: number }
+    lastCalculatedParams: string
+}
 
-        {/* VISUALIZATION COLUMN */}
-        <div className="xl:col-span-8 space-y-6">
-          {/* RESULTS PANEL (Moved here for better layout) */}
-          {results && (
-            <Card className="glass-panel border-0 animate-in fade-in slide-in-from-top-4 duration-500 bg-black/40">
-              {(() => {
-                const prediction1X2 = results.predictions['1X2'];
-                return (
-                  <>
-                    <CardHeader className="border-b border-white/5 flex justify-between items-center pb-3">
-                      <span className="font-bold text-white flex items-center gap-2">
-                        <BarChart3 className="h-5 w-5 text-secondary" />
-                        Oracle Verdict
-                      </span>
-                      <span className="text-xs bg-secondary/20 text-secondary px-2 py-1 rounded border border-secondary/30 font-mono">
-                        Confidence: {(prediction1X2.confidence * 100).toFixed(0)}%
-                      </span>
-                    </CardHeader>
-                    <CardContent className="space-y-6 pt-6">
-                      {/* Cache Indicator */}
-                      {lastCalculatedParams === `${params.homeTeam}-${params.awayTeam}-${params.homeXG}-${params.awayXG}` && (
-                        <div className="text-[10px] text-primary/60 text-center -mt-4 font-mono uppercase tracking-tighter">
-                          Serving Optimized Result from Cache
-                        </div>
-                      )}
+function OracleResultsPanel({ results, params, lastCalculatedParams }: OracleResultsPanelProps) {
+    const prediction1X2 = results.predictions['1X2']
+    const currentParamKey = `${params.homeTeam}-${params.awayTeam}-${params.homeXG}-${params.awayXG}`
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                        {/* GAUGE */}
-                        <div className="relative">
-                          <div className="flex justify-between mb-2">
+    const maxProb = Math.max(prediction1X2.home_win, prediction1X2.draw, prediction1X2.away_win)
+    let predictionOutcome = '', color = ''
+    if (prediction1X2.home_win === maxProb) { 
+        predictionOutcome = params.homeTeam
+        color = 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' 
+    } else if (prediction1X2.away_win === maxProb) { 
+        predictionOutcome = params.awayTeam
+        color = 'text-rose-400 border-rose-500/30 bg-rose-500/10' 
+    } else { 
+        predictionOutcome = 'DRAW'
+        color = 'text-slate-200 border-slate-500/30 bg-slate-500/10' 
+    }
+
+    return (
+        <Card className="glass-panel border-0 animate-in fade-in slide-in-from-top-4 duration-500 bg-black/40">
+            <CardHeader className="border-b border-white/5 flex justify-between items-center pb-3">
+                <span className="font-bold text-white flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-secondary" />
+                    Oracle Verdict
+                </span>
+                <span className="text-xs bg-secondary/20 text-secondary px-2 py-1 rounded border border-secondary/30 font-mono">
+                    Confidence: {(prediction1X2.confidence * 100).toFixed(0)}%
+                </span>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-6">
+                {/* Cache Indicator */}
+                {lastCalculatedParams === currentParamKey && (
+                    <div className="text-[10px] text-primary/60 text-center -mt-4 font-mono uppercase tracking-tighter">
+                        Serving Optimized Result from Cache
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                    {/* GAUGE */}
+                    <div className="relative">
+                        <div className="flex justify-between mb-2">
                             <span className="font-bold text-white text-sm">{params.homeTeam}</span>
                             <span className="text-[10px] text-slate-500 uppercase tracking-widest">Draw Zone</span>
                             <span className="font-bold text-white text-sm text-right">{params.awayTeam}</span>
-                          </div>
+                        </div>
 
-                          <div className="relative h-6 rounded-full overflow-hidden bg-slate-800/50 ring-1 ring-white/10">
+                        <div className="relative h-6 rounded-full overflow-hidden bg-slate-800/50 ring-1 ring-white/10">
                             <div className="absolute left-0 top-0 h-full bg-gradient-to-r from-emerald-500/80 to-emerald-400/80" style={{ width: `${prediction1X2.home_win * 100}%` }} />
                             <div className="absolute top-0 h-full bg-white/10" style={{ left: `${prediction1X2.home_win * 100}%`, width: `${prediction1X2.draw * 100}%` }} />
                             <div className="absolute right-0 top-0 h-full bg-gradient-l from-rose-500/80 to-rose-400/80" style={{ width: `${prediction1X2.away_win * 100}%` }} />
 
                             {/* Needle */}
                             <div
-                              className="absolute top-0 bottom-0 w-1 bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.8)] z-10"
-                              style={{
-                                left: `calc(${(prediction1X2.home_win + prediction1X2.draw / 2) * 100}%)`,
-                                transform: 'translateX(-50%)'
-                              }}
+                                className="absolute top-0 bottom-0 w-1 bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.8)] z-10"
+                                style={{
+                                    left: `calc(${(prediction1X2.home_win + prediction1X2.draw / 2) * 100}%)`,
+                                    transform: 'translateX(-50%)'
+                                }}
                             />
-                          </div>
+                        </div>
 
-                          <div
+                        <div
                             className="absolute top-1/2 -mt-2 w-4 h-4 bg-white rounded-full shadow-lg z-20 transition-all duration-1000 ease-out flex items-center justify-center"
                             style={{
-                              left: `${(prediction1X2.home_win * 100) + (prediction1X2.draw * 50)}%`,
-                              transform: 'translate(-50%, -50%)'
+                                left: `${(prediction1X2.home_win * 100) + (prediction1X2.draw * 50)}%`,
+                                transform: 'translate(-50%, -50%)'
                             }}
-                          >
+                        >
                             <div className="w-1.5 h-1.5 bg-primary rounded-full" />
-                          </div>
+                        </div>
+                    </div>
+
+                    {/* PREDICTION BADGE & STATS */}
+                    <div className="space-y-4">
+                        <div className="flex justify-center">
+                            <div className={`px-6 py-3 rounded-xl border ${color} backdrop-blur-md w-full text-center`}>
+                                <div className="text-[10px] uppercase tracking-widest opacity-70 mb-1">Predicted Verdict</div>
+                                <div className="text-xl font-black tracking-tight">{predictionOutcome}</div>
+                            </div>
                         </div>
 
-                        {/* PREDICTION BADGE & STATS */}
-                        <div className="space-y-4">
-                          <div className="flex justify-center">
-                            {(() => {
-                              const prediction1X2 = results.predictions['1X2'];
-                              const maxProb = Math.max(prediction1X2.home_win, prediction1X2.draw, prediction1X2.away_win)
-                              let predictionOutcome = '', color = ''
-                              if (prediction1X2.home_win === maxProb) { predictionOutcome = `${params.homeTeam}`; color = 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' }
-                              else if (prediction1X2.away_win === maxProb) { predictionOutcome = `${params.awayTeam}`; color = 'text-rose-400 border-rose-500/30 bg-rose-500/10' }
-                              else { predictionOutcome = 'DRAW'; color = 'text-slate-200 border-slate-500/30 bg-slate-500/10' }
-
-                              return (
-                                <div className={`px-6 py-3 rounded-xl border ${color} backdrop-blur-md w-full text-center`}>
-                                  <div className="text-[10px] uppercase tracking-widest opacity-70 mb-1">Predicted Verdict</div>
-                                  <div className="text-xl font-black tracking-tight">{predictionOutcome}</div>
-                                </div>
-                              )
-                            })()}
-                          </div>
-
-                          <div className="grid grid-cols-3 text-center divide-x divide-white/10 bg-white/5 py-3 rounded-xl">
+                        <div className="grid grid-cols-3 text-center divide-x divide-white/10 bg-white/5 py-3 rounded-xl">
                             <div>
-                              <div className="text-[10px] text-slate-400 uppercase">Home</div>
-                              <div className="text-lg font-black text-emerald-400">{(prediction1X2.home_win * 100).toFixed(1)}%</div>
+                                <div className="text-[10px] text-slate-400 uppercase">Home</div>
+                                <div className="text-lg font-black text-emerald-400">{(prediction1X2.home_win * 100).toFixed(1)}%</div>
                             </div>
                             <div>
-                              <div className="text-[10px] text-slate-400 uppercase">Draw</div>
-                              <div className="text-lg font-black text-slate-400">{(prediction1X2.draw * 100).toFixed(1)}%</div>
+                                <div className="text-[10px] text-slate-400 uppercase">Draw</div>
+                                <div className="text-lg font-black text-slate-400">{(prediction1X2.draw * 100).toFixed(1)}%</div>
                             </div>
                             <div>
-                              <div className="text-[10px] text-slate-400 uppercase">Away</div>
-                              <div className="text-lg font-black text-rose-400">{(prediction1X2.away_win * 100).toFixed(1)}%</div>
+                                <div className="text-[10px] text-slate-400 uppercase">Away</div>
+                                <div className="text-lg font-black text-rose-400">{(prediction1X2.away_win * 100).toFixed(1)}%</div>
                             </div>
-                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </>
-                );
-              })()}
-            </Card>
-          )}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
 
-          {/* AI INSIGHTS (Priority positioning) */}
-          <AIInsights
-            homeTeam={params.homeTeam}
-            awayTeam={params.awayTeam}
-            results={results}
-            homeWave={homeWaveAnalysis}
-            awayWave={awayWaveAnalysis}
-            homeNews={homeNews} // Passing news to AIInsights
-            awayNews={awayNews}
-          />
+interface PhaseSpaceChartProps {
+    homeTeam: string
+    awayTeam: string
+    homeTrajectory: PhasePoint[]
+    awayTrajectory: PhasePoint[]
+    simulationCloud: PhasePoint[]
+}
 
-          <div className="flex justify-center">
-            <AdSpace type="rectangle" className="w-full" />
-          </div>
-          <Card className="h-[500px] glass-panel border-0 flex flex-col">
+function PhaseSpaceChart({ homeTeam, awayTeam, homeTrajectory, awayTrajectory, simulationCloud }: PhaseSpaceChartProps) {
+    return (
+        <Card className="h-[500px] glass-panel border-0 flex flex-col">
             <CardHeader className="border-b border-white/5 pb-2">
-              <h3 className="text-sm font-bold text-white">Monte Carlo Phase Space</h3>
+                <h3 className="text-sm font-bold text-white">Monte Carlo Phase Space</h3>
             </CardHeader>
             <CardContent className="flex-1 w-full min-h-[400px] p-4">
-              <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
-                <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.5} />
-                  <XAxis type="number" dataKey="x" name="Attack Form" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} label={{ value: 'Attack Form (Avg Goals)', position: 'bottom', offset: 0, fill: '#94a3b8', fontSize: 10 }} />
-                  <YAxis type="number" dataKey="y" name="Defense Form" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} label={{ value: 'Defense Form (Avg Conceded)', angle: -90, position: 'left', offset: 10, fill: '#94a3b8', fontSize: 10 }} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }}
-                    cursor={{ strokeDasharray: '3 3' }}
-                  />
-                  <ReferenceLine y={1.5} stroke="#ef4444" strokeDasharray="3 3" opacity={0.5} />
-                  <ReferenceLine x={1.5} stroke="#10b981" strokeDasharray="3 3" opacity={0.5} />
-                  <Legend
-                    verticalAlign="top"
-                    height={36}
-                    wrapperStyle={{ color: '#94a3b8', fontSize: '11px', paddingBottom: '8px' }}
-                  />
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
+                    <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.5} />
+                        <XAxis type="number" dataKey="x" name="Attack Form" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} label={{ value: 'Attack Form (Avg Goals)', position: 'bottom', offset: 0, fill: '#94a3b8', fontSize: 10 }} />
+                        <YAxis type="number" dataKey="y" name="Defense Form" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} label={{ value: 'Defense Form (Avg Conceded)', angle: -90, position: 'left', offset: 10, fill: '#94a3b8', fontSize: 10 }} />
+                        <Tooltip
+                            contentStyle={{ backgroundColor: '#0f172a', borderColor: '#1e293b', color: '#f8fafc' }}
+                            cursor={{ strokeDasharray: '3 3' }}
+                        />
+                        <ReferenceLine y={1.5} stroke="#ef4444" strokeDasharray="3 3" opacity={0.5} />
+                        <ReferenceLine x={1.5} stroke="#10b981" strokeDasharray="3 3" opacity={0.5} />
+                        <Legend
+                            verticalAlign="top"
+                            height={36}
+                            wrapperStyle={{ color: '#94a3b8', fontSize: '11px', paddingBottom: '8px' }}
+                        />
 
-                  {/* Simulation Cloud with Gradient Opacity */}
-                  {simulationCloud.length > 0 && (
-                    <Scatter
-                      name="Monte Carlo Simulations"
-                      data={simulationCloud}
-                      fill="#8b5cf6"
-                      opacity={0.35}
-                      shape="circle"
-                    />
-                  )}
+                        {/* Simulation Cloud */}
+                        {simulationCloud.length > 0 && (
+                            <Scatter
+                                name="Monte Carlo Simulations"
+                                data={simulationCloud}
+                                fill="#8b5cf6"
+                                opacity={0.35}
+                                shape="circle"
+                            />
+                        )}
 
-                  {/* Home Team Trajectory (Green) */}
-                  {homeTrajectory.length > 0 && (
-                    <Scatter
-                      name={params.homeTeam || 'Home'}
-                      data={homeTrajectory.filter((p: PhasePoint) => p.className !== 'prediction')}
-                      fill="#10b981"
-                      line={{ stroke: '#10b981', strokeWidth: 2 }}
-                      shape="circle"
-                    />
-                  )}
+                        {/* Home Team Trajectory */}
+                        {homeTrajectory.length > 0 && (
+                            <Scatter
+                                name={homeTeam || 'Home'}
+                                data={homeTrajectory.filter((p: PhasePoint) => p.className !== 'prediction')}
+                                fill="#10b981"
+                                line={{ stroke: '#10b981', strokeWidth: 2 }}
+                                shape="circle"
+                            />
+                        )}
 
-                  {/* Away Team Trajectory (Red) */}
-                  {awayTrajectory.length > 0 && (
-                    <Scatter
-                      name={params.awayTeam || 'Away'}
-                      data={awayTrajectory.filter((p: PhasePoint) => p.className !== 'prediction')}
-                      fill="#ef4444"
-                      line={{ stroke: '#ef4444', strokeWidth: 2 }}
-                      shape="diamond"
-                    />
-                  )}
+                        {/* Away Team Trajectory */}
+                        {awayTrajectory.length > 0 && (
+                            <Scatter
+                                name={awayTeam || 'Away'}
+                                data={awayTrajectory.filter((p: PhasePoint) => p.className !== 'prediction')}
+                                fill="#ef4444"
+                                line={{ stroke: '#ef4444', strokeWidth: 2 }}
+                                shape="diamond"
+                            />
+                        )}
 
-                  {/* Prediction Star (Gold) */}
-                  {homeTrajectory.some((p: PhasePoint) => p.className === 'prediction') && (
-                    <Scatter
-                      name="Oracle Prediction"
-                      data={homeTrajectory.filter((p: PhasePoint) => p.className === 'prediction')}
-                      fill="#fbbf24"
-                      shape={(props: any) => (
-                        <g>
-                          <circle cx={props.cx} cy={props.cy} r={12} fill="#fbbf24" opacity={0.4} className="animate-pulse" />
-                          <circle cx={props.cx} cy={props.cy} r={6} fill="#fbbf24" />
-                        </g>
-                      )}
-                    />
-                  )}
-                </ScatterChart>
-              </ResponsiveContainer>
+                        {/* Prediction Star */}
+                        {homeTrajectory.some((p: PhasePoint) => p.className === 'prediction') && (
+                            <Scatter
+                                name="Oracle Prediction"
+                                data={homeTrajectory.filter((p: PhasePoint) => p.className === 'prediction')}
+                                fill="#fbbf24"
+                                shape={(props: any) => (
+                                    <g>
+                                        <circle cx={props.cx} cy={props.cy} r={12} fill="#fbbf24" opacity={0.4} className="animate-pulse" />
+                                        <circle cx={props.cx} cy={props.cy} r={6} fill="#fbbf24" />
+                                    </g>
+                                )}
+                            />
+                        )}
+                    </ScatterChart>
+                </ResponsiveContainer>
             </CardContent>
-          </Card>
-
-          {/* WAVE ANALYSIS */}
-          {(homeWaveAnalysis || awayWaveAnalysis) && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in zoom-in-95 duration-700">
-              {homeWaveAnalysis && <WaveChart team={params.homeTeam} wave={homeWaveAnalysis} color="#10b981" />}
-              {awayWaveAnalysis && <WaveChart team={params.awayTeam} wave={awayWaveAnalysis} color="#f43f5e" />}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Data Source Info - Compact version */}
-      <div className="mt-8 space-y-6">
-        <DataSourceInfo compact />
-        <DatabaseStats />
-      </div>
-    </MainLayout>
-  )
+        </Card>
+    )
 }
-
-// Helper Component for Wave Charts
-function WaveChart({ team, wave, color }: { team: string, wave: WaveAnalysis, color: string }) {
-  return (
-    <Card className="h-[250px] glass-panel border-0 flex flex-col">
-      <CardHeader className="py-3 px-4 border-b border-white/5 flex justify-between items-center">
-        <span className="font-bold text-white text-sm">{team}</span>
-        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${wave.momentum > 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
-          {wave.momentum > 0 ? 'RISING' : 'FALLING'}
-        </span>
-      </CardHeader>
-      <CardContent className="flex-1 min-h-[150px] p-2">
-        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={100}>
-          <LineChart data={wave.signal.map((v, i) => ({ i, v, t: wave.reconstructed[i] }))}>
-            <Line type="monotone" dataKey="t" stroke={color} strokeWidth={2} dot={false} />
-            <Line type="stepAfter" dataKey="v" stroke="#94a3b8" strokeWidth={1} strokeDasharray="3 3" dot={false} opacity={0.5} />
-          </LineChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
-  )
-}
-
-/**
- * Calculates a rolling average for match stats to smooth out the trajectory.
- * Window size of 5 matches is standard for "Form".
- */
-function calculateRollingAverage(matches: any[], team: string, windowSize: number = 5): PhasePoint[] {
-  const points: PhasePoint[] = []
-
-  // Create cumulative stats to avoid re-looping
-  for (let i = 0; i < matches.length; i++) {
-    // We need at least 'windowSize' matches to form a point
-    if (i < windowSize - 1) continue
-
-    const window = matches.slice(i - windowSize + 1, i + 1)
-    let goalsFor = 0
-    let goalsAgainst = 0
-
-    window.forEach(m => {
-      if (m.home_team === team) {
-        goalsFor += m.home_goals
-        goalsAgainst += m.away_goals
-      } else {
-        goalsFor += m.away_goals
-        goalsAgainst += m.home_goals
-      }
-    })
-
-    points.push({
-      time: i,
-      x: Number((goalsFor / windowSize).toFixed(2)),
-      y: Number((goalsAgainst / windowSize).toFixed(2)),
-      className: "history"
-    })
-  }
-
-  // If we have very few matches, fallback to raw data but distinct
-  if (points.length === 0 && matches.length > 0) {
-    return matches.map((m, i) => ({
-      time: i,
-      x: m.home_team === team ? m.home_goals : m.away_goals,
-      y: m.home_team === team ? m.away_goals : m.home_goals,
-      className: "history"
-    }))
-  }
-
-  return points
-}
-
