@@ -5,26 +5,26 @@
 SERIE_A_2025_2026:
   code: SA
   teams:
-    - Inter
-    - Milan
-    - Juventus
-    - Napoli
-    - Roma
-    - Lazio
     - Atalanta
     - Bologna
-    - Fiorentina
-    - Torino
-    - Verona
-    - Udinese
-    - Empoli
-    - Genoa
     - Cagliari
-    - Parma
-    - Lecce
     - Como
-    - Venezia
-    - Monza
+    - Cremonese
+    - Fiorentina
+    - Genoa
+    - Inter
+    - Juventus
+    - Lazio
+    - Lecce
+    - Milan
+    - Napoli
+    - Parma
+    - Pisa
+    - Roma
+    - Sassuolo
+    - Torino
+    - Udinese
+    - Verona
 
 PREMIER_LEAGUE_2025_2026:
   code: PL
